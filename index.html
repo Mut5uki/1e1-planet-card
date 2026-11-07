@@ -4,21 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>七个行星牌</title>
-  <link rel="stylesheet" href="styles.css?v=58" />
+  <link rel="stylesheet" href="styles.css?v=143" />
 </head>
 <body>
   <div id="app">
-    <!-- 12×9：顶行留空，其余为对手 / 中区 / 玩家 -->
-    <div id="board" class="board-12x9" aria-label="board"></div>
-
-    <div class="overlay" id="overlay" hidden>
-      <div class="dialog">
-        <div class="dialog-title" id="overlay-title"></div>
-        <div class="dialog-body" id="overlay-body"></div>
-        <button type="button" id="btn-overlay-ok" class="cell" aria-label="restart"></button>
+    <!-- 主界面 -->
+    <section id="menu" class="menu" aria-label="menu">
+      <button type="button" class="menu-modify" id="btn-menu-modify" aria-label="modify game">
+        <span class="menu-modify-glyphs" id="menu-modify-glyphs"></span>
+      </button>
+      <h1 class="menu-brand" aria-label="1e1 planet card">
+        <span class="menu-brand-row" id="menu-title"></span>
+      </h1>
+      <div class="menu-choices">
+        <button type="button" class="menu-choice" id="btn-single" aria-label="single-player game">
+          <span class="menu-choice-glyphs" id="choice-single"></span>
+        </button>
+        <button type="button" class="menu-choice" id="btn-two" aria-label="pair player game">
+          <span class="menu-choice-glyphs" id="choice-two"></span>
+        </button>
       </div>
-    </div>
+    </section>
+
+    <!-- 设置：同 12×9 网格 -->
+    <section id="settings" class="settings" hidden aria-label="settings">
+      <div id="settings-board" class="board-12x9 settings-board" aria-label="settings board"></div>
+    </section>
+
+    <!-- 对局 -->
+    <section id="game" class="game" hidden>
+      <div id="board" class="board-12x9" aria-label="board"></div>
+      <div class="overlay" id="overlay" hidden>
+        <div class="dialog">
+          <div class="dialog-title" id="overlay-title"></div>
+          <div class="dialog-body" id="overlay-body"></div>
+          <button type="button" id="btn-overlay-ok" class="cell" aria-label="restart"></button>
+        </div>
+      </div>
+    </section>
   </div>
-  <script type="module" src="main.js?v=58"></script>
+  <script type="module" src="main.js?v=100"></script>
 </body>
 </html>

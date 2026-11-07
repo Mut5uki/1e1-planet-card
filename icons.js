@@ -36,34 +36,65 @@ export function alienNumberParts(n) {
   return parts;
 }
 
-const V = "v20"; // cache bust: win/lose glyphs
+const V = "v33"; // cache bust: 1e1→7, 2e1→14 labels
 
-function sq(src) {
-  const url = src.includes("?") ? `${src}&${V}` : `${src}?${V}`;
-  return `<img class="glyph sq" src="${url}" alt="" draggable="false" />`;
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-/** 英文词 → 官方琥珀色字形（ParseString / DrawACToSlot） */
+/**
+ * 字形用 mask + --line 上色；
+ * label：地球人语言（英文），由 html.hide-terran 控制显隐
+ */
+function sq(src, label) {
+  const url = src.includes("?") ? `${src}&${V}` : `${src}?${V}`;
+  const lab = label == null || label === "" ? "" : String(label);
+  const glyph = `<span class="glyph sq" style="--glyph:url('${url}')" role="img"${
+    lab ? ` aria-label="${escapeHtml(lab)}"` : ""
+  }></span>`;
+  if (!lab) return glyph;
+  return `<span class="glyph-stack">${glyph}<span class="terran-lang">${escapeHtml(
+    lab
+  )}</span></span>`;
+}
+
+/** 英文词 → 官方字形（ParseString / DrawACToSlot） */
 export function word(name) {
-  return sq(`assets/official/ui/${name}.png`);
+  return sq(`assets/official/ui/${name}.png`, name);
 }
 
 export function elementSvg(id) {
   // 旧 id terrain = 地球；图标用 earth.png 横框
   const file = id === "terrain" ? "earth" : id;
-  return sq(`assets/official/elements/${file}.png`);
+  return sq(`assets/official/elements/${file}.png`, file);
 }
 
 /** 牌面点数 1–7；7 用 1e1 */
 export function numberSvg(n) {
   const v = Number(n);
-  if (v === 7) return sq("assets/official/numbers/1e1.png");
-  return sq(`assets/official/numbers/n${v}.png`);
+  if (v === 7) return sq("assets/official/numbers/1e1.png", "7");
+  return sq(`assets/official/numbers/n${v}.png`, String(v));
+}
+
+/** 专符 → 地球人数字：1e1=7, 2e1=14, 3e1=21, 4e1=28 */
+const E1_LABELS = { "1e1": "7", "2e1": "14", "3e1": "21", "4e1": "28" };
+
+export function numberFileGlyph(file, label) {
+  const f = String(file).replace(/\.png$/i, "");
+  const lab =
+    label != null
+      ? String(label)
+      : E1_LABELS[f] ?? f.replace(/^n/, "");
+  return sq(`assets/official/numbers/${f}.png`, lab);
 }
 
 export function alienNumberGlyphs(n) {
   return alienNumberParts(n)
-    .map((p) => sq(`assets/official/numbers/${p.file}.png`))
+    .map((p) => numberFileGlyph(p.file, String(p.value)))
     .join("");
 }
 
@@ -71,30 +102,85 @@ export function cardFace(card) {
   return `${elementSvg(card.element)}${numberSvg(card.number)}`;
 }
 
-function ui(file) {
-  return sq(`assets/official/ui/${file}`);
+function ui(file, label) {
+  const name = label ?? String(file).replace(/\.png$/i, "");
+  return sq(`assets/official/ui/${file}`, name);
 }
 
 export const UI = {
-  title7: () => sq("assets/official/numbers/1e1.png"),
-  titlePlanet: () => ui("planet.png"),
-  titleCard: () => ui("card.png"),
+  title7: () => sq("assets/official/numbers/1e1.png", "7"),
+  titlePlanet: () => ui("planet.png", "planet"),
+  titleCard: () => ui("card.png", "card"),
   /** 地球：文件夹 earth.png 横框符（词条用，不是玩家徽章） */
-  earth: () => ui("earth.png"),
+  earth: () => ui("earth.png", "earth"),
   /** 玩家：player.png */
-  playerMark: () => ui("player.png"),
+  playerMark: () => ui("player.png", "player"),
   /** 玩家二 / 对手：opponent.png（玩家符 + * + ||） */
-  player2Mark: () => ui("opponent.png"),
-  opponent: () => ui("opponent.png"),
-  receive: () => ui("draw.png"),
-  deck: () => ui("deck.png"),
-  have: () => ui("have.png"),
-  twoBars: () => sq("assets/official/numbers/n2.png"),
-  cardMark: () => ui("card.png"),
-  win: () => ui("win.png"),
-  lose: () => ui("lose.png"),
-  leave: () => ui("leave.png"),
+  player2Mark: () => ui("opponent.png", "opponent"),
+  opponent: () => ui("opponent.png", "opponent"),
+  receive: () => ui("draw.png", "draw"),
+  deck: () => ui("deck.png", "deck"),
+  have: () => ui("have.png", "have"),
+  twoBars: () => sq("assets/official/numbers/n2.png", "2"),
+  cardMark: () => ui("card.png", "card"),
+  win: () => ui("win.png", "win"),
+  fail: () => ui("fail.png", "fail"),
+  leave: () => ui("leave.png", "leave"),
+  again: () => ui("again.png", "again"),
+  modify: () => ui("modify.png", "modify"),
+  single: () => ui("single.png", "single"),
+  pair: () => ui("pair.png", "pair"),
+  game: () => ui("game.png", "game"),
+  /** 词条 player（菜单用）；徽章仍用 playerMark */
+  playerWord: () => ui("player.png", "player"),
+  word: () => ui("word.png", "word"),
+  color: () => ui("color.png", "color"),
+  hide: () => ui("hide.png", "hide"),
+  terran: () => ui("terran.png", "terran"),
+  language: () => ui("language.png", "language"),
+  yes: () => ui("yes.png", "yes"),
+  no: () => ui("no.png", "no"),
 };
+
+/** modify game */
+export function modifyGameGlyphs() {
+  return [UI.modify(), UI.game()].join("");
+}
+
+/** opponent leave（多人：对手离开） */
+export function opponentLeaveGlyphs() {
+  return [UI.opponent(), UI.leave()].join("");
+}
+
+/** word color */
+export function wordColorGlyphs() {
+  return [UI.word(), UI.color()].join("");
+}
+
+/** hide terran language */
+export function hideTerranLanguageGlyphs() {
+  return [UI.hide(), UI.terran(), UI.language()].join("");
+}
+
+/** 当前配色名对应字形 */
+export function colorSwatchGlyph(colorId) {
+  return word(colorId);
+}
+
+/** 主界面大标题：1e1 planet card */
+export function menuTitleGlyphs() {
+  return [UI.title7(), UI.titlePlanet(), UI.titleCard()].join("");
+}
+
+/** single player game */
+export function singlePlayerGlyphs() {
+  return [UI.single(), UI.playerWord(), UI.game()].join("");
+}
+
+/** pair player game */
+export function twoPlayerGlyphs() {
+  return [UI.pair(), UI.playerWord(), UI.game()].join("");
+}
 
 function cardWords(card) {
   return [elementSvg(card.element), numberSvg(card.number)];
