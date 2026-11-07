@@ -1,0 +1,11 @@
+{
+  "name": "planet-cards",
+  "version": "1.0.0",
+  "private": true,
+  "description": "外星来信 · 七个行星牌 复刻",
+  "scripts": {
+    "start": "npx --yes serve -p 5173 .",
+    "test": "node --test test/win.test.js"
+  },
+  "type": "module"
+}

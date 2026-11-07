@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>七个行星牌</title>
+  <link rel="stylesheet" href="styles.css?v=58" />
+</head>
+<body>
+  <div id="app">
+    <!-- 12×9：顶行留空，其余为对手 / 中区 / 玩家 -->
+    <div id="board" class="board-12x9" aria-label="board"></div>
+
+    <div class="overlay" id="overlay" hidden>
+      <div class="dialog">
+        <div class="dialog-title" id="overlay-title"></div>
+        <div class="dialog-body" id="overlay-body"></div>
+        <button type="button" id="btn-overlay-ok" class="cell" aria-label="restart"></button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="main.js?v=58"></script>
+</body>
+</html>

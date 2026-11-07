@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+
+# 解包中间产物过大，不进库
+extracted/il2cpp/
+extracted/fonts/

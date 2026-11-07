@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>裁切符号预览</title>
+  <style>
+    body { background: #3a2810; color: #e0a45a; font-family: sans-serif; padding: 24px; }
+    h2 { margin-top: 28px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; }
+    .cell { border: 1px solid #a67a3a; padding: 12px; text-align: center; min-width: 88px; }
+    .cell img { height: 64px; width: auto; max-width: 90px; object-fit: contain; display: block; margin: 0 auto 8px; }
+    .src { max-width: 100%; margin-top: 12px; border: 1px solid #a67a3a; }
+  </style>
+</head>
+<body>
+  <h1>裁切符号预览</h1>
+  <h2>元素</h2>
+  <div class="row" id="elements"></div>
+  <img class="src" src="assets/source-elements.png" alt="" />
+  <h2>数字</h2>
+  <div class="row" id="numbers"></div>
+  <img class="src" src="assets/source-numbers.png" alt="" />
+  <h2>界面</h2>
+  <div class="row" id="ui"></div>
+  <script type="module">
+    import { ELEMENTS, elementSvg, numberSvg, UI } from "./icons.js";
+    document.getElementById("elements").innerHTML = ELEMENTS.map(e =>
+      `<div class="cell">${elementSvg(e.id)}<div>${e.name}</div></div>`
+    ).join("");
+    document.getElementById("numbers").innerHTML = [1,2,3,4,5,6,7].map(n =>
+      `<div class="cell">${numberSvg(n)}<div>${n}</div></div>`
+    ).join("");
+    const uiItems = [
+      ["title7","7"],["titlePlanet","行星"],["titleCard","牌"],
+      ["playerMark","玩家"],["player2Mark","玩家2"],["receive","接收"],
+      ["deck","牌堆"],["have","有"],["twoBars","2 (28 2)"],["cardMark","牌"],
+    ];
+    document.getElementById("ui").innerHTML = uiItems.map(([k,t]) =>
+      `<div class="cell">${UI[k]()}<div>${t}</div></div>`
+    ).join("");
+    const { alienNumberGlyphs, alienNumberLabel } = await import("./icons.js");
+    const samples = [7, 14, 20, 21, 28, 30];
+    document.getElementById("ui").insertAdjacentHTML(
+      "beforeend",
+      samples.map((n) =>
+        `<div class="cell"><div style="display:flex;gap:4px;justify-content:center">${alienNumberGlyphs(n)}</div><div>${alienNumberLabel(n)}</div></div>`
+      ).join("")
+    );
+  </script>
+</body>
+</html>

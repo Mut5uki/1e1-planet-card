@@ -1,0 +1,280 @@
+:root {
+  --bg: #4b3303;
+  /* 符号：稍亮 */
+  --line: #e8b07a;
+  /* 线框：参考原版更淡、更闷的琥珀色 */
+  --frame: rgba(168, 118, 58, 0.72);
+  --frame-w: 2.75px;
+  /* 顶部分割：对手牌槽顶线位置 */
+  --divider: #d4a06a;
+  --divider-w: 3px;
+  --hover: rgba(232, 176, 122, 0.14);
+  /* 棋盘最大宽度；纵横比略高于 12:9，上下稍长一点 */
+  --board-max-w: 1080px;
+  --board-aspect-w: 12;
+  --board-aspect-h: 10.2;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--line);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  user-select: none;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+#app {
+  /* 锁比例并限制最大宽度；略增高使上下稍长 */
+  width: min(
+    100vw - 0.6vw,
+    calc(100vh * var(--board-aspect-w) / var(--board-aspect-h)),
+    var(--board-max-w)
+  );
+  height: min(
+    100vh - 0.8vh,
+    calc((100vw - 0.6vw) * var(--board-aspect-h) / var(--board-aspect-w)),
+    calc(var(--board-max-w) * var(--board-aspect-h) / var(--board-aspect-w))
+  );
+  margin: 0 auto;
+  padding: 0.4vh 0.3vw;
+  display: grid;
+  place-items: stretch;
+}
+
+/* 12×9：顶行留空 + 上牌区 2 + 中区 4 + 下牌区 2 */
+.board-12x9 {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(9, minmax(0, 1fr));
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* 亮粗分割线：对齐对手牌槽顶部，横向铺满视口 */
+.board-12x9::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  top: calc(100% / 9);
+  height: var(--divider-w);
+  margin-top: calc(var(--divider-w) / -2);
+  background: var(--divider);
+  box-shadow: 0 0 1px var(--divider);
+  z-index: 6;
+  pointer-events: none;
+}
+
+.cell {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--line);
+  position: relative;
+}
+
+.glyph.sq,
+.sq {
+  width: min(82%, 72px);
+  height: min(82%, 72px);
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  background: transparent;
+  filter: drop-shadow(0 0 0.55px var(--line));
+}
+
+.cell.clickable { cursor: pointer; }
+.cell.clickable:hover,
+.cell.selected { background: var(--hover); }
+.cell.card-slot.clickable:hover,
+.cell.card-slot.selected {
+  background: var(--hover);
+}
+.cell:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* 线框：更粗、更淡（参考原版；符号仍用 --line） */
+.cell.vt { box-shadow: inset 0 var(--frame-w) 0 var(--frame); }
+.cell.vb { box-shadow: inset 0 calc(-1 * var(--frame-w)) 0 var(--frame); }
+.cell.vl { box-shadow: inset var(--frame-w) 0 0 var(--frame); }
+.cell.vr { box-shadow: inset calc(-1 * var(--frame-w)) 0 0 var(--frame); }
+
+.cell.vt.vl {
+  box-shadow:
+    inset 0 var(--frame-w) 0 var(--frame),
+    inset var(--frame-w) 0 0 var(--frame);
+}
+.cell.vt.vr {
+  box-shadow:
+    inset 0 var(--frame-w) 0 var(--frame),
+    inset calc(-1 * var(--frame-w)) 0 0 var(--frame);
+}
+.cell.vb.vl {
+  box-shadow:
+    inset 0 calc(-1 * var(--frame-w)) 0 var(--frame),
+    inset var(--frame-w) 0 0 var(--frame);
+}
+.cell.vb.vr {
+  box-shadow:
+    inset 0 calc(-1 * var(--frame-w)) 0 var(--frame),
+    inset calc(-1 * var(--frame-w)) 0 0 var(--frame);
+}
+.cell.vt.vl.vr {
+  box-shadow:
+    inset 0 var(--frame-w) 0 var(--frame),
+    inset var(--frame-w) 0 0 var(--frame),
+    inset calc(-1 * var(--frame-w)) 0 0 var(--frame);
+}
+.cell.vb.vl.vr {
+  box-shadow:
+    inset 0 calc(-1 * var(--frame-w)) 0 var(--frame),
+    inset var(--frame-w) 0 0 var(--frame),
+    inset calc(-1 * var(--frame-w)) 0 0 var(--frame);
+}
+.cell.vt.vb.vl {
+  box-shadow:
+    inset 0 var(--frame-w) 0 var(--frame),
+    inset 0 calc(-1 * var(--frame-w)) 0 var(--frame),
+    inset var(--frame-w) 0 0 var(--frame);
+}
+.cell.vt.vb.vr {
+  box-shadow:
+    inset 0 var(--frame-w) 0 var(--frame),
+    inset 0 calc(-1 * var(--frame-w)) 0 var(--frame),
+    inset calc(-1 * var(--frame-w)) 0 0 var(--frame);
+}
+.cell.vt.vb.vl.vr {
+  box-shadow:
+    inset 0 var(--frame-w) 0 var(--frame),
+    inset 0 calc(-1 * var(--frame-w)) 0 var(--frame),
+    inset var(--frame-w) 0 0 var(--frame),
+    inset calc(-1 * var(--frame-w)) 0 0 var(--frame);
+}
+
+.cell.box {
+  box-shadow: inset 0 0 0 var(--frame-w) var(--frame);
+}
+
+.cell.tall .stack {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  gap: 0;
+  padding: 4% 0;
+}
+
+/* y3–y4 两格：上下各一符 */
+.cell.tall .stack-2 {
+  grid-template-rows: 1fr 1fr;
+}
+
+.cell.tall .sq {
+  width: min(78%, 64px);
+  height: min(78%, 64px);
+}
+
+/* 徽章两列整块，图标居中 */
+.cell.badge-wide {
+  place-items: center;
+}
+.cell.badge-wide .sq {
+  width: min(90%, 132px);
+  height: min(72%, 68px);
+}
+
+/* 玩家符：2×2 左上格 */
+.cell.badge-corner {
+  place-items: center;
+}
+.cell.badge-corner .sq {
+  width: min(82%, 72px);
+  height: min(82%, 72px);
+}
+
+/* 中区牌堆符：跨两行居中 */
+.cell.mid-glyph {
+  place-items: center;
+}
+.cell.mid-glyph .sq {
+  width: min(78%, 64px);
+  height: min(78%, 64px);
+}
+
+/* 顶行标题符：整符上移，尺寸不变 */
+.board-12x9 > .cell.mid-glyph.title-row {
+  overflow: visible;
+  place-items: center;
+}
+.board-12x9 > .cell.mid-glyph.title-row .sq {
+  width: min(82%, 72px);
+  height: min(82%, 72px);
+  transform: translateY(-10px);
+}
+
+.cell.insert {
+  cursor: pointer;
+  font-size: 22px;
+  opacity: 0.75;
+}
+.cell.insert:hover { background: var(--hover); opacity: 1; }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 12, 4, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.overlay[hidden] { display: none; }
+
+.dialog {
+  border: 1px solid var(--line);
+  background: var(--bg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.dialog-title,
+.dialog-body,
+.meld-row {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.meld-card {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  place-items: center;
+  gap: 4px;
+}
+.meld-card .sq { width: 40px; height: 40px; }
