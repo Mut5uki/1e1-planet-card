@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>七个行星牌</title>
-  <link rel="stylesheet" href="styles.css?v=149" />
+  <link rel="stylesheet" href="styles.css?v=178" />
 </head>
 <body>
   <div id="app">
@@ -16,6 +16,21 @@
       <h1 class="menu-brand" aria-label="1e1 planet card">
         <span class="menu-brand-row" id="menu-title"></span>
       </h1>
+      <div class="menu-name-row" aria-label="you de name be">
+        <span class="menu-name-glyphs" id="menu-name-glyphs"></span>
+        <label class="menu-name-blank">
+          <input
+            class="menu-name-input"
+            id="player-name"
+            type="text"
+            maxlength="16"
+            autocomplete="nickname"
+            spellcheck="false"
+            placeholder=""
+            aria-label="name"
+          />
+        </label>
+      </div>
       <div class="menu-choices">
         <button type="button" class="menu-choice" id="btn-single" aria-label="single-player game">
           <span class="menu-choice-glyphs" id="choice-single"></span>
@@ -24,6 +39,11 @@
           <span class="menu-choice-glyphs" id="choice-two"></span>
         </button>
       </div>
+    </section>
+
+    <!-- 双人准备房间：同 12×9 网格 -->
+    <section id="room" class="room" hidden aria-label="pair room">
+      <div id="room-board" class="board-12x9 room-board" aria-label="room board"></div>
     </section>
 
     <!-- 设置：同 12×9 网格 -->
@@ -43,6 +63,6 @@
       </div>
     </section>
   </div>
-  <script type="module" src="main.js?v=100"></script>
+  <script type="module" src="main.js?v=135"></script>
 </body>
 </html>

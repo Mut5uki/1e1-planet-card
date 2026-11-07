@@ -191,3 +191,148 @@ export function aiPlay(state, taken) {
     score: move.score,
   };
 }
+
+/** —— 联机：座位 0/1，pending 进权威状态 —— */
+
+export function cloneState(state) {
+  return JSON.parse(JSON.stringify(state));
+}
+
+/** 主机开局发牌；firstSeat=0|1 决定谁先手 */
+export function dealNetGame(firstSeat = 0) {
+  const g = dealNewGame();
+  const turn = firstSeat === 1 ? 1 : 0;
+  return {
+    deck: g.deck,
+    hands: [g.player, g.opponent],
+    publicCard: g.publicCard,
+    turn,
+    winner: null,
+    draw: false,
+    pending: null,
+    lastEvent: null,
+    seq: 0,
+  };
+}
+
+/**
+ * 应用联机动作（主机权威）
+ * action: { type:"take", source:"public"|"deck" }
+ *        | { type:"insert", index:number }
+ *        | { type:"discard", index:number }
+ */
+export function applyNetAction(state, seat, action) {
+  if (!state || seat !== 0 && seat !== 1) {
+    return { ok: false, error: "bad-seat" };
+  }
+  if (state.winner != null || state.draw) {
+    return { ok: false, error: "ended" };
+  }
+  const s = cloneState(state);
+
+  if (action?.type === "take") {
+    if (s.turn !== seat || s.pending) return { ok: false, error: "not-your-take" };
+    const source = action.source === "public" ? "public" : "deck";
+    let card = null;
+    if (source === "public") {
+      if (!s.publicCard) return { ok: false, error: "no-public" };
+      card = s.publicCard;
+      s.publicCard = null;
+    } else {
+      if (!s.deck.length) return { ok: false, error: "empty-deck" };
+      card = s.deck.shift();
+    }
+    s.pending = { seat, card, source, phase: "insert", insertAt: null };
+    s.lastEvent = { seat, kind: source === "public" ? "takePublic" : "takeDeck", card: source === "public" ? card : null };
+    s.seq += 1;
+    return { ok: true, state: s };
+  }
+
+  if (action?.type === "insert") {
+    const p = s.pending;
+    if (!p || p.seat !== seat || p.phase !== "insert") {
+      return { ok: false, error: "not-insert" };
+    }
+    const index = Number(action.index);
+    if (!Number.isInteger(index) || index < 0 || index > s.hands[seat].length) {
+      return { ok: false, error: "bad-insert" };
+    }
+    s.hands[seat] = insertCard(s.hands[seat], p.card, index);
+    s.pending = { ...p, phase: "discard", insertAt: index };
+    s.seq += 1;
+    return { ok: true, state: s };
+  }
+
+  if (action?.type === "discard") {
+    const p = s.pending;
+    if (!p || p.seat !== seat || p.phase !== "discard") {
+      return { ok: false, error: "not-discard" };
+    }
+    const index = Number(action.index);
+    if (!Number.isInteger(index) || index < 0 || index >= s.hands[seat].length) {
+      return { ok: false, error: "bad-discard" };
+    }
+    const insertAt = p.insertAt ?? 0;
+    const { hand, discarded } = discardAt(s.hands[seat], index);
+    s.hands[seat] = hand;
+    s.publicCard = discarded;
+    const marks = takeGiveMarks(
+      /* discard-then-insert 近似：用插入位与弃牌位估槽 */
+      index > insertAt ? index - 1 : index,
+      insertAt > index ? insertAt - 1 : insertAt
+    );
+    s.lastEvent = {
+      seat,
+      kind: "give",
+      card: discarded,
+      source: p.source,
+      taken: p.source === "public" ? p.card : null,
+      takeAt: marks.takeAt,
+      giveAt: marks.giveAt,
+    };
+    s.pending = null;
+
+    if (sevenCheckVictory(hand)) {
+      s.winner = seat;
+      s.seq += 1;
+      return { ok: true, state: s };
+    }
+    if (s.deck.length === 0) {
+      s.draw = true;
+      s.seq += 1;
+      return { ok: true, state: s };
+    }
+    s.turn = 1 - seat;
+    s.seq += 1;
+    return { ok: true, state: s };
+  }
+
+  return { ok: false, error: "bad-action" };
+}
+
+/** 本地座位视角（供 UI） */
+export function netToLocalView(netState, seat) {
+  const other = 1 - seat;
+  const pending =
+    netState.pending && netState.pending.seat === seat
+      ? {
+          card: netState.pending.card,
+          source: netState.pending.source,
+          phase: netState.pending.phase,
+        }
+      : null;
+  let winner = null;
+  if (netState.winner === seat) winner = "player";
+  else if (netState.winner === other) winner = "opponent";
+  return {
+    deck: netState.deck,
+    player: netState.hands[seat],
+    opponent: netState.hands[other],
+    publicCard: netState.publicCard,
+    turn: netState.turn === seat ? "player" : "opponent",
+    winner,
+    draw: netState.draw,
+    pending,
+    lastEvent: netState.lastEvent,
+  };
+}

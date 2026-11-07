@@ -18,10 +18,11 @@ export const WORD_COLORS = [
   { id: "infrablue", line: "#4d4d99", bg: "#1a1830", terran: "infrablue" },
 ];
 
-/** @type {{ color: string, hideTerran: boolean }} */
+/** @type {{ color: string, hideTerran: boolean, playerName: string }} */
 export let settings = {
   color: "white",
   hideTerran: false,
+  playerName: "",
 };
 
 export function loadSettings() {
@@ -31,6 +32,9 @@ export function loadSettings() {
     const data = JSON.parse(raw);
     if (WORD_COLORS.some((c) => c.id === data.color)) settings.color = data.color;
     if (typeof data.hideTerran === "boolean") settings.hideTerran = data.hideTerran;
+    if (typeof data.playerName === "string") {
+      settings.playerName = data.playerName.slice(0, 16);
+    }
   } catch (_) {
     /* ignore */
   }
@@ -39,8 +43,19 @@ export function loadSettings() {
 export function saveSettings() {
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ color: settings.color, hideTerran: settings.hideTerran })
+    JSON.stringify({
+      color: settings.color,
+      hideTerran: settings.hideTerran,
+      playerName: settings.playerName,
+    })
   );
+}
+
+export function setPlayerName(name) {
+  settings.playerName = String(name ?? "")
+    .replace(/[\r\n\t]/g, "")
+    .slice(0, 16);
+  saveSettings();
 }
 
 export function colorMeta(id = settings.color) {

@@ -4,8 +4,16 @@
   "private": true,
   "description": "外星来信 · 七个行星牌 复刻",
   "scripts": {
-    "start": "npx --yes serve -p 5173 .",
+    "start": "node server.mjs",
+    "tunnel": "npx --yes cloudflared tunnel --url http://127.0.0.1:5173",
+    "dev:cf": "npx --yes wrangler@4 dev",
+    "deploy": "npx --yes wrangler@4 deploy",
+    "deploy:temp": "npx --yes wrangler@4 deploy --temporary",
+    "serve-static": "npx --yes serve -p 5173 .",
     "test": "node --test test/win.test.js"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
 }

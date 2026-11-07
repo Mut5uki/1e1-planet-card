@@ -36,7 +36,7 @@ export function alienNumberParts(n) {
   return parts;
 }
 
-const V = "v33"; // cache bust: 1e1→7, 2e1→14 labels
+const V = "v34"; // cache bust: --glyph-mask 与尺寸变量分离
 
 function escapeHtml(s) {
   return String(s)
@@ -53,7 +53,7 @@ function escapeHtml(s) {
 function sq(src, label) {
   const url = src.includes("?") ? `${src}&${V}` : `${src}?${V}`;
   const lab = label == null || label === "" ? "" : String(label);
-  const glyph = `<span class="glyph sq" style="--glyph:url('${url}')" role="img"${
+  const glyph = `<span class="glyph sq" style="--glyph-mask:url('${url}')" role="img"${
     lab ? ` aria-label="${escapeHtml(lab)}"` : ""
   }></span>`;
   if (!lab) return glyph;
@@ -140,6 +140,19 @@ export const UI = {
   language: () => ui("language.png", "language"),
   yes: () => ui("yes.png", "yes"),
   no: () => ui("no.png", "no"),
+  create: () => ui("create.png", "create"),
+  join: () => ui("join.png", "join"),
+  enter: () => ui("enter.png", "enter"),
+  /** 房主：无 host 符，用 home */
+  home: () => ui("home.png", "home"),
+  guest: () => ui("guest.png", "guest"),
+  first: () => ui("first.png", "first"),
+  second: () => ui("second.png", "second"),
+  score: () => ui("score.png", "score"),
+  now: () => ui("now.png", "now"),
+  action: () => ui("action.png", "action"),
+  do: () => ui("do.png", "do"),
+  round: () => ui("round.png", "round"),
 };
 
 /** modify game */
@@ -180,6 +193,21 @@ export function singlePlayerGlyphs() {
 /** pair player game */
 export function twoPlayerGlyphs() {
   return [UI.pair(), UI.playerWord(), UI.game()].join("");
+}
+
+/** you de name be */
+export function youNameBeGlyphs() {
+  return [word("you"), word("de"), word("name"), word("be")].join("");
+}
+
+/** create */
+export function createRoomGlyphs() {
+  return UI.create();
+}
+
+/** join */
+export function joinRoomGlyphs() {
+  return UI.join();
 }
 
 function cardWords(card) {
@@ -250,4 +278,14 @@ export function opponentTakeDeckPrefix() {
 /** 空格 + and give [牌] */
 export function andGiveSuffix(card) {
   return [null, word("and"), word("give"), ...cardWords(card)];
+}
+
+/** 轮到你行动：now you do round */
+export function turnYouActionSentence() {
+  return [word("now"), word("you"), word("do"), word("round")];
+}
+
+/** 轮到对手行动：now opponent do round */
+export function turnOpponentActionSentence() {
+  return [word("now"), word("opponent"), word("do"), word("round")];
 }

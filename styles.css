@@ -58,7 +58,8 @@ body {
 
 #app > .menu,
 #app > .game,
-#app > .settings {
+#app > .settings,
+#app > .room {
   grid-area: 1 / 1;
   min-width: 0;
   min-height: 0;
@@ -78,10 +79,10 @@ body {
 .menu {
   position: relative;
   display: grid;
-  grid-template-rows: 0.75fr auto 1.55fr;
+  grid-template-rows: auto auto 1fr;
   align-items: center;
   justify-items: center;
-  padding: 6% 5%;
+  padding: 6% 5% 8%;
   background:
     radial-gradient(ellipse 80% 55% at 50% 28%, rgba(232, 176, 122, 0.08), transparent 70%),
     var(--bg);
@@ -278,13 +279,547 @@ html.hide-terran .terran-lang {
   transform: translate(-50%, calc(var(--title-glyph) * 0.5 + 4px));
 }
 
+/* you de name be ________ */
+.menu-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: clamp(6px, 1.2vw, 14px);
+  width: min(100%, 820px);
+  margin-top: clamp(18px, 4vh, 36px);
+  color: var(--line);
+}
+.menu-name-glyphs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--glyph-gap);
+  flex-wrap: wrap;
+}
+.menu-name-glyphs .glyph-stack {
+  width: auto;
+  height: auto;
+  min-width: var(--glyph);
+  min-height: calc(var(--glyph) + 1.2em);
+}
+.menu-name-glyphs .glyph-stack > .sq,
+.menu-name-glyphs .sq {
+  width: var(--glyph) !important;
+  height: var(--glyph) !important;
+  min-height: var(--glyph) !important;
+  max-width: none !important;
+  max-height: none !important;
+  --glyph-lift: 0px;
+  transform: none !important;
+}
+.menu-name-glyphs .terran-lang {
+  transform: translate(-50%, calc(var(--glyph) * 0.5 + 4px));
+}
+/* 填空线：跟在四个字形后面 */
+.menu-name-blank {
+  position: relative;
+  display: grid;
+  align-items: end;
+  min-width: clamp(7em, 26vw, 11em);
+  height: calc(var(--glyph) + 1.2em);
+  padding-bottom: 0.15em;
+}
+.menu-name-blank::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.35em;
+  border-bottom: var(--frame-w) solid var(--line);
+  pointer-events: none;
+}
+.menu-name-input {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--line);
+  font-family: var(--font-terran);
+  font-size: clamp(18px, 2.6vw, 26px);
+  letter-spacing: 0.08em;
+  width: 100%;
+  padding: 0 2px 6px;
+  text-align: center;
+  caret-color: var(--line);
+  z-index: 1;
+}
+.menu-name-input::placeholder {
+  color: transparent;
+}
+.menu-name-input:focus {
+  outline: none;
+}
+
 .menu-choices {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: clamp(16px, 3vw, 40px);
   width: min(100%, 820px);
+  align-self: end;
+  margin-top: clamp(28px, 10vh, 96px);
+  margin-bottom: clamp(24px, 6vh, 56px);
+}
+
+/* 双人准备房间：自有布局，格子/字形规格对齐对局 mid-glyph */
+.room {
+  display: grid;
+  place-items: stretch;
+  background: var(--bg);
+  color: var(--line);
+}
+.room[hidden] {
+  display: none !important;
+}
+/* 房间不要顶部分割线（那是对局牌区用的） */
+.room-board::before {
+  display: none;
+}
+.room-board > .cell.room-seat-dim {
+  opacity: 0.4;
+}
+.room-board > .cell.room-code-cell {
+  cursor: pointer;
+  pointer-events: auto;
+}
+.room-board > .cell.room-code-cell:hover {
+  background: var(--hover);
+}
+/* 填空格：与两侧 create/join 同高同格，下划线对齐字形下沿 */
+.room-board > .cell.room-join-blank {
+  place-items: stretch;
+  padding: 0;
+  pointer-events: auto;
+}
+.room-board .room-code-blank-cell {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  position: relative;
+  padding: 0;
+  /* 与 mid-glyph 字形同幅度上移，线和 create/join 对齐 */
+  --glyph-lift: 12px;
+  transform: translateY(calc(-1 * var(--glyph-lift)));
+}
+.room-board .room-code-blank-cell::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  margin-top: calc(min(39%, 34px) + 2px);
+  border-bottom: var(--frame-w) solid var(--line);
+  pointer-events: none;
+  opacity: 0.9;
+}
+.room-board .room-input {
+  width: 84%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--line);
+  font-family: var(--font-terran);
+  font-size: clamp(16px, 2.4vw, 24px);
+  letter-spacing: 0.22em;
+  text-align: center;
+  text-transform: uppercase;
+  caret-color: var(--line);
+  pointer-events: auto;
+  padding: 0;
+  margin: 0;
+}
+.room-board .room-code-text {
+  font-family: var(--font-terran);
+  font-size: clamp(20px, 3vw, 32px);
+  letter-spacing: 0.26em;
+  font-weight: 600;
+  color: var(--line);
+  padding-left: 0.26em;
+  line-height: 1;
+  align-self: center;
+  justify-self: center;
+}
+.room-board .room-name-cell {
+  font-family: var(--font-terran);
+  font-size: clamp(12px, 1.6vw, 16px);
+  letter-spacing: 0.04em;
+  color: var(--line);
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  align-self: center;
+  justify-self: center;
+}
+.room-board .room-hint-cell {
+  font-family: var(--font-terran);
+  font-size: clamp(12px, 1.5vw, 15px);
+  opacity: 0.75;
+  text-align: center;
+  line-height: 1.35;
+  padding: 0 6px;
+  align-self: center;
+  justify-self: center;
+}
+/* 顶栏：左标题，右 leave（不走棋盘分割线） */
+.room-top {
+  width: min(100%, 820px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(12px, 2vw, 24px);
+}
+.room-title-glyphs,
+.room-leave {
+  display: flex;
+  align-items: center;
+  gap: var(--glyph-gap);
+}
+.room-title-glyphs .glyph-stack,
+.room-leave .glyph-stack {
+  width: auto;
+  height: auto;
+  min-width: var(--glyph);
+  min-height: calc(var(--glyph) + 1.2em);
+}
+.room-title-glyphs .glyph-stack > .sq,
+.room-title-glyphs .sq,
+.room-leave .glyph-stack > .sq,
+.room-leave .sq {
+  width: var(--glyph) !important;
+  height: var(--glyph) !important;
+  min-height: var(--glyph) !important;
+  max-width: none !important;
+  max-height: none !important;
+  --glyph-lift: 0px;
+  transform: none !important;
+}
+.room-title-glyphs .terran-lang,
+.room-leave .terran-lang {
+  transform: translate(-50%, calc(var(--glyph) * 0.5 + 4px));
+}
+.room-leave {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--line);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  flex: 0 0 auto;
+}
+.room-leave:hover,
+.room-leave:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+.room-seats {
+  width: min(100%, 720px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(12px, 3vw, 28px);
+  align-self: end;
+  margin-top: clamp(32px, 10vh, 96px);
+}
+.room-seat {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: clamp(14px, 2.5vh, 22px);
+  border: var(--frame-w) solid var(--frame);
+  min-height: calc(var(--glyph) + 48px);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.room-seat.is-you {
+  border-color: var(--line);
+}
+.room-seat.is-ready {
+  background: color-mix(in srgb, var(--line) 8%, transparent);
+}
+.room-seat.is-empty {
+  opacity: 0.55;
+}
+.room-seat-glyph-col {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+.room-seat-glyph {
+  display: grid;
+  place-items: center;
+}
+.room-seat-glyph .glyph-stack {
+  width: auto;
+  height: auto;
+  min-width: var(--glyph);
+  min-height: var(--glyph);
+}
+.room-seat-glyph .glyph-stack > .sq,
+.room-seat-glyph .sq {
+  width: var(--glyph) !important;
+  height: var(--glyph) !important;
+  min-height: var(--glyph) !important;
+  max-width: none !important;
+  max-height: none !important;
+  --glyph-lift: 0px;
+  transform: none !important;
+}
+/* 名称取代字形自带英文，显示在字符正下方 */
+.room-seat-glyph .terran-lang {
+  display: none !important;
+}
+.room-seat-name {
+  font-family: var(--font-terran);
+  font-size: clamp(13px, 1.9vw, 18px);
+  letter-spacing: 0.04em;
+  text-align: center;
+  max-width: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 1.1em;
+}
+.room-seat-meta {
+  display: grid;
+  gap: 4px;
+}
+.room-seat-label {
+  display: grid;
+  place-items: center;
+  min-height: var(--glyph);
+}
+.room-seat-label .glyph-stack {
+  width: auto;
+  height: auto;
+  min-width: calc(var(--glyph) * 0.85);
+  min-height: calc(var(--glyph) * 0.85);
+}
+.room-seat-label .sq {
+  width: calc(var(--glyph) * 0.85) !important;
+  height: calc(var(--glyph) * 0.85) !important;
+  max-width: none !important;
+  max-height: none !important;
+  --glyph-lift: 0px;
+  transform: none !important;
+}
+.room-seat-status {
+  font-size: 13px;
+  opacity: 0.8;
+  letter-spacing: 0.04em;
+}
+.room-code-block {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  width: min(100%, 720px);
+}
+.room-code-block[hidden] {
+  display: none !important;
+}
+.room-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.room-code {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--line);
+  font-family: var(--font-terran);
+  font-size: clamp(28px, 6vw, 42px);
+  letter-spacing: 0.28em;
+  font-weight: 600;
+  padding: 4px 0 4px 0.28em;
+  cursor: pointer;
+}
+.room-code:hover,
+.room-code:focus-visible {
+  outline: none;
+  opacity: 0.85;
+}
+.room-btn-copy {
+  padding: 8px 12px;
+  font-size: 14px;
+}
+.room-btn-copy.is-copied {
+  border-color: var(--line);
+}
+.room-hint {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.75;
+  text-align: center;
+  max-width: 36em;
+  line-height: 1.4;
+}
+.room-actions {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: min(100%, 420px);
   align-self: start;
-  margin-top: 12vh;
+  margin-top: clamp(12px, 3vh, 28px);
+  margin-bottom: clamp(20px, 5vh, 48px);
+}
+.room-actions[hidden] {
+  display: none !important;
+}
+.room-join-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.room-glyph-btn {
+  appearance: none;
+  border: var(--frame-w) solid var(--frame);
+  background: transparent;
+  color: var(--line);
+  cursor: pointer;
+  /* 上少下多：给字形+英文整体偏上留空 */
+  padding: 6px clamp(14px, 2vw, 22px) 18px;
+  display: grid;
+  place-items: center;
+  min-width: calc(var(--glyph) + 28px);
+  min-height: calc(var(--glyph) + 36px);
+}
+.room-glyph-btn:hover,
+.room-glyph-btn:focus-visible {
+  background: var(--hover);
+  border-color: var(--line);
+  outline: none;
+}
+.room-glyph-btn-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--glyph-gap);
+  transform: translateY(-6px);
+}
+.room-glyph-btn-inner .glyph-stack {
+  width: auto;
+  height: auto;
+  min-width: var(--glyph);
+  min-height: calc(var(--glyph) + 1.05em);
+}
+.room-glyph-btn-inner .glyph-stack > .sq,
+.room-glyph-btn-inner .sq {
+  width: var(--glyph) !important;
+  height: var(--glyph) !important;
+  min-height: var(--glyph) !important;
+  max-width: none !important;
+  max-height: none !important;
+  --glyph-lift: 0px;
+  transform: none !important;
+}
+.room-glyph-btn-inner .terran-lang {
+  transform: translate(-50%, calc(var(--glyph) * 0.5 + 2px));
+}
+/* 房间码填空线（对应原 ROOM 输入框） */
+.room-code-blank {
+  position: relative;
+  display: grid;
+  align-items: end;
+  min-width: clamp(7em, 22vw, 10em);
+  height: calc(var(--glyph) + 1.2em);
+  padding: 0 4px 0.15em;
+  border: var(--frame-w) solid var(--frame);
+}
+.room-code-blank::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0.45em;
+  border-bottom: var(--frame-w) solid var(--line);
+  pointer-events: none;
+  opacity: 0.85;
+}
+.room-btn {
+  appearance: none;
+  border: var(--frame-w) solid var(--frame);
+  background: transparent;
+  color: var(--line);
+  font-family: var(--font-terran);
+  font-size: 16px;
+  padding: 10px 18px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+}
+.room-btn:hover,
+.room-btn:focus-visible {
+  background: var(--hover);
+  border-color: var(--line);
+  outline: none;
+}
+.room-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.room-ready-btn {
+  min-width: 7em;
+  display: grid;
+  place-items: center;
+  padding: 12px 20px;
+}
+.room-ready-btn.is-on {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--line) 10%, transparent);
+}
+.room-ready-glyphs {
+  display: flex;
+  gap: var(--glyph-gap);
+  align-items: center;
+}
+.room-ready-glyphs .glyph-stack {
+  width: auto;
+  height: auto;
+  min-width: var(--glyph);
+  min-height: calc(var(--glyph) + 1.1em);
+}
+.room-ready-glyphs .sq {
+  width: var(--glyph);
+  height: var(--glyph);
+}
+.room-input {
+  appearance: none;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--line);
+  font-family: var(--font-terran);
+  font-size: clamp(18px, 2.4vw, 24px);
+  letter-spacing: 0.2em;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 0 2px 8px;
+  caret-color: var(--line);
+  z-index: 1;
+}
+.room-input:focus {
+  outline: none;
+}
+.room-input::placeholder {
+  color: transparent;
+}
+
+@media (max-width: 560px) {
+  .room-seats {
+    grid-template-columns: 1fr;
+  }
 }
 
 .menu-choice {
@@ -395,13 +930,14 @@ html.hide-terran .terran-lang {
   margin-inline: auto;
   pointer-events: none;
   flex-shrink: 0;
-  /* mask：只用 PNG 透明度，填充色跟 --line（word color） */
+  /* mask：只用 PNG 透明度，填充色跟 --line（word color）
+   * 注意：尺寸用 --glyph，贴图用 --glyph-mask，勿混用 */
   background-color: var(--line);
-  -webkit-mask-image: var(--glyph);
+  -webkit-mask-image: var(--glyph-mask);
   -webkit-mask-size: contain;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-position: center;
-  mask-image: var(--glyph);
+  mask-image: var(--glyph-mask);
   mask-size: contain;
   mask-repeat: no-repeat;
   mask-position: center;
@@ -535,25 +1071,118 @@ html.hide-terran .terran-lang {
 }
 .cell.badge-corner {
   place-items: center;
+  overflow: visible;
 }
-.cell.badge-corner .sq {
-  width: min(82%, 72px);
-  height: min(82%, 72px);
+.cell.badge-corner .badge-named {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.cell.badge-corner .badge-named > .glyph-stack {
+  flex: 0 0 auto;
+  width: var(--glyph);
+  height: var(--glyph);
+  min-width: var(--glyph);
+  min-height: var(--glyph);
+}
+/* 百分比高在 auto 父级会塌成 0，徽章用固定尺寸 */
+.cell.badge-corner .sq,
+.cell.badge-corner .badge-named .sq {
+  width: var(--glyph) !important;
+  height: var(--glyph) !important;
+  min-width: var(--glyph) !important;
+  min-height: var(--glyph) !important;
+  max-width: none !important;
+  max-height: none !important;
+  --glyph-lift: 0px;
+  transform: none !important;
+}
+/* 用玩家名替换徽章自带英文 */
+.cell.badge-corner .badge-named .terran-lang {
+  display: none !important;
+}
+.cell.badge-corner .badge-name {
+  position: static;
+  transform: none;
+  flex: 0 0 auto;
+  font-family: var(--font-terran);
+  font-size: clamp(11px, 1.5vw, 15px);
+  line-height: 1.2;
+  color: var(--line);
+  text-align: center;
+  max-width: 100%;
+  overflow: visible;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+  padding-bottom: 1px;
 }
 
-/* modify game：两列，每列仍是统一 glyph-stack */
-.board-12x9 > .cell.modify-game {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  gap: 6%;
-  padding: 0 2%;
+/* 2×2 下两格：与 mid-glyph 同格同尺寸（数字 | score） */
+.cell.badge-score {
+  place-items: center;
+  overflow: visible;
 }
-.board-12x9 > .cell.modify-game .glyph-stack {
+.cell.badge-score .badge-score-nums {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+.cell.badge-score .badge-score-nums .glyph-stack {
   flex: 1 1 0;
   width: auto;
   height: 100%;
   min-width: 0;
+  min-height: 0;
+}
+.cell.badge-score .badge-score-nums .sq {
+  width: min(78%, var(--glyph)) !important;
+  height: min(78%, var(--glyph)) !important;
+}
+
+/*
+ * modify game：按钮跨两列，字形仍落在两格中线（subgrid）
+ * 判定框只有外层一个
+ */
+.board-12x9 > .cell.modify-game {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: span 2;
+  padding: 0;
+  gap: 0;
+  place-items: stretch;
+}
+.board-12x9 > .cell.modify-game > .glyph-hit-group {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  place-items: stretch;
+  width: auto;
+  height: 100%;
+  padding: 0;
+  gap: 0;
+  box-sizing: border-box;
+}
+.board-12x9 > .cell.modify-game > .glyph-hit-group > .glyph-stack {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  /* 上移交给外层 hit */
+  transform: none;
+}
+.board-12x9 > .cell.modify-game > .glyph-hit-group .sq {
+  width: min(78%, var(--glyph)) !important;
+  height: min(78%, var(--glyph)) !important;
+  --glyph-lift: 0px;
+  transform: none !important;
 }
 
 .cell.insert {
