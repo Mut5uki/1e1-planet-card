@@ -20,14 +20,19 @@ export function createRoomCode(len = 4) {
   return s;
 }
 
-function withRoom(url, room) {
+function withRoom(url, room, intent = "") {
   try {
     const u = new URL(url, typeof location !== "undefined" ? location.href : undefined);
     if (!u.searchParams.get("room")) u.searchParams.set("room", room);
+    if (intent) u.searchParams.set("intent", intent);
+    else u.searchParams.delete("intent");
     return u.toString();
   } catch {
     const join = url.includes("?") ? "&" : "?";
-    return `${url}${join}room=${encodeURIComponent(room)}`;
+    const extra = intent
+      ? `&intent=${encodeURIComponent(intent)}`
+      : "";
+    return `${url}${join}room=${encodeURIComponent(room)}${extra}`;
   }
 }
 
@@ -65,17 +70,20 @@ export function defaultRelayUrl(room = "") {
  *   onError?: (err: Error) => void,
  *   onReady?: () => void,
  * }} handlers
- * @param {{ relayUrl?: string, timeoutMs?: number }} [opts]
+ * @param {{ relayUrl?: string, timeoutMs?: number, intent?: "join" | "" }} [opts]
  */
 export function connectRoom(room, handlers, opts = {}) {
   const id = String(room || "").trim().toUpperCase();
   if (!id) throw new Error("empty-room");
 
-  const url = opts.relayUrl || defaultRelayUrl(id);
+  const intent = opts.intent === "join" ? "join" : "";
+  const baseUrl = opts.relayUrl || defaultRelayUrl(id);
+  const url = intent ? withRoom(baseUrl, id, intent) : baseUrl;
   const timeoutMs = opts.timeoutMs ?? 10000;
   const queue = [];
   let joined = false;
   let closed = false;
+  let peers = 0;
   let settleReady;
 
   const ready = new Promise((resolve, reject) => {
@@ -104,7 +112,9 @@ export function connectRoom(room, handlers, opts = {}) {
   ws.addEventListener("open", () => {
     if (closed) return;
     // DO / 本地中继都会在进房后回 _joined；再发一次 _join 兼容旧服
-    ws.send(JSON.stringify({ type: "_join", room: id, t: Date.now() }));
+    const payload = { type: "_join", room: id, t: Date.now() };
+    if (intent) payload.intent = intent;
+    ws.send(JSON.stringify(payload));
   });
 
   ws.addEventListener("message", (ev) => {
@@ -124,10 +134,11 @@ export function connectRoom(room, handlers, opts = {}) {
         }
         if (joined || closed) return;
         joined = true;
+        peers = Number(data.peers) || 0;
         clearTimeout(timer);
         for (const raw of queue) ws.send(raw);
         queue.length = 0;
-        settleReady?.resolve();
+        settleReady?.resolve({ peers });
         handlers.onReady?.();
         return;
       }
@@ -162,6 +173,9 @@ export function connectRoom(room, handlers, opts = {}) {
     room: id,
     relayUrl: url,
     ready,
+    get peers() {
+      return peers;
+    },
     send(msg) {
       if (closed) return;
       const raw = JSON.stringify({ ...msg, room: id, t: Date.now() });

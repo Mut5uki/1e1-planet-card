@@ -21,6 +21,9 @@ export class GameRoom {
     if (!room) {
       return new Response("room required", { status: 400 });
     }
+    const intent = String(url.searchParams.get("intent") || "")
+      .trim()
+      .toLowerCase();
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
@@ -28,7 +31,22 @@ export class GameRoom {
     server.serializeAttachment({ room });
 
     const peers = this.ctx.getWebSockets().length;
-    if (peers > 2) {
+    // join：房间里必须已有人（房主已创建），否则视为房间不存在
+    if (intent === "join" && peers < 2) {
+      server.send(
+        JSON.stringify({
+          type: "_joined",
+          ok: false,
+          error: "room-missing",
+          room,
+          t: Date.now(),
+        })
+      );
+      server.close(1008, "room-missing");
+      return new Response(null, { status: 101, webSocket: client });
+    }
+    // 前两人入座对弈，第三人起观战；设上限防滥用
+    if (peers > 16) {
       server.send(
         JSON.stringify({
           type: "_joined",
@@ -87,6 +105,29 @@ export class GameRoom {
       return;
     }
 
+    if (
+      msg.type === "hello" ||
+      msg.type === "join" ||
+      msg.type === "spectate-hello" ||
+      msg.type === "leave"
+    ) {
+      const role =
+        msg.type === "spectate-hello"
+          ? "spectator"
+          : msg.role || att.role || null;
+      const seat =
+        msg.seat === 0 || msg.seat === 1
+          ? msg.seat
+          : att.seat === 0 || att.seat === 1
+            ? att.seat
+            : null;
+      ws.serializeAttachment({
+        room: room || msg.room || "",
+        role,
+        seat,
+      });
+    }
+
     const out = JSON.stringify({ ...msg, room: msg.room || room });
     for (const peer of this.ctx.getWebSockets()) {
       if (peer !== ws) {
@@ -112,6 +153,8 @@ export class GameRoom {
     const leaveMsg = JSON.stringify({
       type: "leave",
       room: att.room || "",
+      role: att.role || null,
+      seat: att.seat === 0 || att.seat === 1 ? att.seat : null,
       t: Date.now(),
       via: "disconnect",
     });

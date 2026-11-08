@@ -26,7 +26,8 @@ import {
   dealNetGame,
   applyNetAction,
   netToLocalView,
-} from "./game.js?v=34";
+  netToSpectatorView,
+} from "./game.js?v=35";
 import {
   settings,
   WORD_COLORS,
@@ -36,7 +37,7 @@ import {
   setHideTerran,
   setPlayerName,
 } from "./settings.js?v=35";
-import { createRoomCode, connectRoom } from "./net.js?v=34";
+import { createRoomCode, connectRoom } from "./net.js?v=36";
 import { preloadAssets } from "./preload.js";
 
 /**
@@ -83,7 +84,7 @@ let gameMode = "single";
 let opponentLeft = false;
 /** @type {ReturnType<typeof connectRoom> | null} */
 let netLink = null;
-/** @type {"host" | "guest" | null} */
+/** @type {"host" | "guest" | "spectator" | null} */
 let netRole = null;
 /** @type {0 | 1 | null} */
 let netSeat = null;
@@ -210,10 +211,23 @@ function badgeWithName(glyphHtml, name) {
 }
 
 function opponentDisplayName() {
-  if (gameMode !== "two" || netSeat == null) return "";
+  if (gameMode !== "two") return "";
+  if (netRole === "spectator") {
+    const n = lobby.names?.[1];
+    return n && String(n).trim() ? String(n).trim() : "";
+  }
+  if (netSeat == null) return "";
   const other = 1 - netSeat;
   const n = lobby.names?.[other];
   return n && String(n).trim() ? String(n).trim() : "";
+}
+
+function homeDisplayName() {
+  if (netRole === "spectator") {
+    const n = lobby.names?.[0];
+    return n && String(n).trim() ? String(n).trim() : "";
+  }
+  return localPlayerName();
 }
 
 /** 左侧 2×2：上格徽章，下两格 ....score */
@@ -312,6 +326,7 @@ function scheduleRender() {
 
 function canAct() {
   return (
+    netRole !== "spectator" &&
     state.turn === "player" &&
     !pending &&
     !busy &&
@@ -346,6 +361,7 @@ function renderImmediate() {
     });
   } else if (
     gameMode === "two" &&
+    netRole !== "spectator" &&
     roundIsEnded() &&
     !opponentLeft &&
     netSeat != null
@@ -363,12 +379,14 @@ function renderImmediate() {
   });
 
   // 多人：对手离开 → 第 3–4 张上方 opponent leave（1×2）
-  // 否则胜负：第三张上方 win / fail
+  // 否则胜负：第三张上方 win / fail（观战双方都亮 win）
   if (opponentLeft) {
     put(4, 0, opponentLeaveGlyphs(), {
       className: "mid-glyph title-row modify-game",
       colSpan: 2,
     });
+  } else if (netRole === "spectator" && (state.winner === "player" || state.winner === "opponent")) {
+    put(4, 0, UI.win(), { className: "mid-glyph title-row" });
   } else if (state.winner === "player") {
     put(4, 0, UI.win(), { className: "mid-glyph title-row" });
   } else if (state.winner === "opponent") {
@@ -377,10 +395,15 @@ function renderImmediate() {
 
   frameCards(0, 11, Y_OPP, Y_OPP + 1);
   putCornerBadge(
-    badgeWithName(UI.opponent(), opponentDisplayName() || "opponent"),
+    badgeWithName(
+      netRole === "spectator" ? UI.guest() : UI.opponent(),
+      opponentDisplayName() || "opponent"
+    ),
     Y_OPP
   );
-  if (
+  if (gameMode === "two" && netRole === "spectator" && roundAgain[1]) {
+    put(1, Y_OPP, UI.again(), { className: "mid-glyph" });
+  } else if (
     gameMode === "two" &&
     netSeat != null &&
     roundAgain[1 - netSeat]
@@ -403,8 +426,8 @@ function renderImmediate() {
     delete cells[key(x, Y_OPP + 1)];
   }
 
-  if (state.winner === "opponent") {
-    // 对手获胜：亮出从左到右九张牌
+  if (netRole === "spectator" || state.winner === "opponent") {
+    // 观战 / 对手获胜：亮出从左到右九张牌
     state.opponent.forEach((card, i) => {
       putOppCol(i + 2, elementSvg(card.element), numberSvg(card.number));
     });
@@ -495,7 +518,14 @@ function renderImmediate() {
   }
 
   let underDeck = null;
-  if (state.winner === "player") {
+  if (netRole === "spectator") {
+    if (!state.winner && !state.draw && !opponentLeft) {
+      underDeck =
+        state.turn === "player"
+          ? turnYouActionSentence()
+          : turnOpponentActionSentence();
+    }
+  } else if (state.winner === "player") {
     underDeck = [word("you"), word("win")];
   } else if (state.winner === "opponent") {
     underDeck = [word("you"), word("fail")];
@@ -511,9 +541,35 @@ function renderImmediate() {
     if (x <= 11) put(x, Y_TURN_INFO, html, { className: "mid-glyph" });
   });
 
+  // 局末：可改下局先后手（home / guest），改完双方需重新点 again
+  if (isRematchPickPhase()) {
+    const fs = lobby.firstSeat === 1 ? 1 : 0;
+    const canPick = netRole !== "spectator";
+    put(1, Y_TURN_INFO, UI.home(), { className: "mid-glyph" });
+    put(2, Y_TURN_INFO, canPick ? hitGlyphs(fs === 0 ? UI.first() : UI.second(), fs === 0) : (fs === 0 ? UI.first() : UI.second()), {
+      className: "mid-glyph",
+      tag: canPick ? "button" : "div",
+      onClick: canPick ? () => setFirstSeat(0) : undefined,
+    });
+    put(4, Y_TURN_INFO, UI.guest(), { className: "mid-glyph" });
+    put(5, Y_TURN_INFO, canPick ? hitGlyphs(fs === 1 ? UI.first() : UI.second(), fs === 1) : (fs === 1 ? UI.first() : UI.second()), {
+      className: "mid-glyph",
+      tag: canPick ? "button" : "div",
+      onClick: canPick ? () => setFirstSeat(1) : undefined,
+    });
+  }
+
   frameCards(0, 11, Y_PLAYER, Y_PLAYER + 1);
-  putCornerBadge(badgeWithName(UI.playerMark(), localPlayerName()), Y_PLAYER);
-  if (gameMode === "two" && netSeat != null && roundAgain[netSeat]) {
+  putCornerBadge(
+    badgeWithName(
+      netRole === "spectator" ? UI.home() : UI.playerMark(),
+      homeDisplayName()
+    ),
+    Y_PLAYER
+  );
+  if (gameMode === "two" && netRole === "spectator" && roundAgain[0]) {
+    put(1, Y_PLAYER, UI.again(), { className: "mid-glyph" });
+  } else if (gameMode === "two" && netSeat != null && roundAgain[netSeat]) {
     put(1, Y_PLAYER, UI.again(), { className: "mid-glyph" });
   }
   putBadgeScore(Y_PLAYER, matchScore.player);
@@ -534,7 +590,7 @@ function renderImmediate() {
     delete cells[key(x, Y_PLAYER + 1)];
   }
 
-  if (pending?.phase === "insert") {
+  if (pending?.phase === "insert" && netRole !== "spectator") {
     state.player.forEach((card, i) => {
       putCardCol(
         i + 2,
@@ -544,7 +600,7 @@ function renderImmediate() {
       );
     });
     putCardCol(11, word("join"), word("right"), () => chooseInsert(9));
-  } else if (pending?.phase === "discard") {
+  } else if (pending?.phase === "discard" && netRole !== "spectator") {
     state.player.forEach((card, i) => {
       putCardCol(
         i + 2,
@@ -788,6 +844,10 @@ function resetLobby() {
 }
 
 function seatDisplayName(seat) {
+  if (netRole === "spectator") {
+    const n = lobby.names?.[seat];
+    return n && String(n).trim() ? String(n).trim() : "";
+  }
   const filled =
     seat === netSeat || (lobby.peerPresent && seat !== netSeat && netSeat != null);
   if (!filled) return "";
@@ -797,26 +857,62 @@ function seatDisplayName(seat) {
 }
 
 function seatFilled(seat) {
+  if (netRole === "spectator") {
+    return seat === 0 || lobby.peerPresent;
+  }
   return (
     seat === netSeat ||
     (lobby.peerPresent && netSeat != null && seat !== netSeat)
   );
 }
 
-/** 点某座位 → 该座位成为先手；改顺序会清 ready（主机权威） */
+/** 局末 again 阶段：可改下局先后手 */
+function isRematchPickPhase() {
+  return (
+    screen === "game" &&
+    gameMode === "two" &&
+    roundIsEnded() &&
+    !opponentLeft
+  );
+}
+
+function broadcastFirstSync() {
+  if (netRole !== "host" || !netLink) return;
+  netLink.send({
+    type: "first-sync",
+    firstSeat: lobby.firstSeat === 1 ? 1 : 0,
+    again: [...roundAgain],
+  });
+}
+
+/** 主机应用先后手（准备房清 ready；局末清 again） */
+function applyHostFirstSeat(next, where) {
+  if (lobby.firstSeat === next) return;
+  lobby.firstSeat = next;
+  if (where === "lobby") {
+    lobby.ready = [false, false];
+    renderRoom();
+    broadcastLobby();
+    return;
+  }
+  roundAgain = [false, false];
+  render();
+  broadcastFirstSync();
+}
+
+/** 点某座位 → 该座位成为先手；改顺序会清 ready / again（主机权威） */
 function setFirstSeat(seat) {
-  if (lobby.phase !== "waiting") return;
   const next = seat === 1 ? 1 : 0;
+  const inLobby = screen === "room" && lobby.phase === "waiting";
+  const inRematch = isRematchPickPhase() && netRole !== "spectator";
+  if (!inLobby && !inRematch) return;
+
   if (netRole !== "host") {
-    if (!lobby.peerPresent) return;
+    if (inLobby && !lobby.peerPresent) return;
     netLink?.send({ type: "first", seat: next });
     return;
   }
-  if (lobby.firstSeat === next) return;
-  lobby.firstSeat = next;
-  lobby.ready = [false, false];
-  renderRoom();
-  broadcastLobby();
+  applyHostFirstSeat(next, inLobby ? "lobby" : "rematch");
 }
 
 function renderRoom() {
@@ -896,6 +992,9 @@ function renderRoom() {
       colSpan: 2,
       onClick: () => joinRoom(),
     });
+    if (lobby.joinError) {
+      put(10, 5, UI.no(), { className: "mid-glyph" });
+    }
   } else {
     // 双方都进房后隐藏房间码与 click for copy…；仅一人时仍显示便于分享
     if (lobby.code && !lobby.peerPresent) {
@@ -918,13 +1017,16 @@ function renderRoom() {
       put(7, 6, UI.to(), { className: "mid-glyph" });
       put(8, 6, UI.other(), { className: "mid-glyph" });
     }
-    if (lobby.peerPresent && netSeat != null) {
+    if (lobby.peerPresent && netSeat != null && netRole !== "spectator") {
       const myReady = !!lobby.ready[netSeat];
       put(5, 7, hitGlyphs(UI.yes(), myReady), {
         className: "mid-glyph",
         tag: "button",
         onClick: () => setLocalReady(!lobby.ready[netSeat]),
       });
+    } else if (netRole === "spectator" && lobby.peerPresent) {
+      // 观战：底部标 other，无 ready
+      put(5, 7, UI.other(), { className: "mid-glyph" });
     }
   }
 
@@ -935,6 +1037,10 @@ function renderRoom() {
     els.roomInput.value = lobby._joinDraft || "";
     els.roomInput.addEventListener("input", () => {
       lobby._joinDraft = els.roomInput.value;
+      if (lobby.joinError) {
+        lobby.joinError = false;
+        renderRoom();
+      }
     });
     els.roomInput.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") joinRoom();
@@ -1022,10 +1128,43 @@ function handleLobbyPeerLeft() {
   broadcastLobby();
 }
 
+function applyOpponentEventHints(ev) {
+  playerInfo = null;
+  if (ev.kind === "takePublic") {
+    opponentInfo = opponentTakePublicPrefix();
+    opponentMarks = null;
+  } else if (ev.kind === "takeDeck") {
+    opponentInfo = opponentTakeDeckPrefix();
+    opponentMarks = null;
+  } else if (ev.kind === "give") {
+    opponentInfo = [
+      ...(ev.source === "public"
+        ? opponentTakePublicPrefix()
+        : opponentTakeDeckPrefix()),
+      ...andGiveSuffix(ev.card),
+    ];
+    opponentMarks = {
+      takeAt: ev.takeAt,
+      giveAt: ev.giveAt,
+      taken: ev.source === "public" ? ev.taken : null,
+    };
+  }
+}
+
+function applyPlayerEventHints(ev) {
+  opponentInfo = null;
+  opponentMarks = null;
+  if (ev.kind === "give") playerInfo = youGiveSentence(ev.card);
+  else playerInfo = null;
+}
+
 /** 把权威状态落到本机视角并刷新 UI */
 function applyNetSnapshot(next) {
   netState = next;
-  const view = netToLocalView(netState, netSeat);
+  const view =
+    netRole === "spectator"
+      ? netToSpectatorView(netState)
+      : netToLocalView(netState, netSeat);
   state = {
     deck: view.deck,
     player: view.player,
@@ -1039,34 +1178,13 @@ function applyNetSnapshot(next) {
   busy = false;
 
   const ev = view.lastEvent;
-  if (ev && ev.seat !== netSeat) {
-    // 对手行动：更新对手提示（保留到其下一手）；清本方提示
-    playerInfo = null;
-    if (ev.kind === "takePublic") {
-      opponentInfo = opponentTakePublicPrefix();
-      opponentMarks = null;
-    } else if (ev.kind === "takeDeck") {
-      opponentInfo = opponentTakeDeckPrefix();
-      opponentMarks = null;
-    } else if (ev.kind === "give") {
-      opponentInfo = [
-        ...(ev.source === "public"
-          ? opponentTakePublicPrefix()
-          : opponentTakeDeckPrefix()),
-        ...andGiveSuffix(ev.card),
-      ];
-      opponentMarks = {
-        takeAt: ev.takeAt,
-        giveAt: ev.giveAt,
-        taken: ev.source === "public" ? ev.taken : null,
-      };
-    }
+  if (netRole === "spectator" && ev) {
+    if (ev.seat === 1) applyOpponentEventHints(ev);
+    else applyPlayerEventHints(ev);
+  } else if (ev && ev.seat !== netSeat) {
+    applyOpponentEventHints(ev);
   } else if (ev && ev.seat === netSeat) {
-    // 自己行动：清对手提示
-    opponentInfo = null;
-    opponentMarks = null;
-    if (ev.kind === "give") playerInfo = youGiveSentence(ev.card);
-    else playerInfo = null;
+    applyPlayerEventHints(ev);
   }
 
   render();
@@ -1084,6 +1202,7 @@ function applyNetSnapshot(next) {
 
 function dispatchNetAction(action) {
   if (gameMode !== "two" || !netLink || netSeat == null) return;
+  if (netRole === "spectator") return;
   if (netRole === "host") {
     const next = applyNetAction(netState, netSeat, action);
     if (!next.ok) return;
@@ -1167,6 +1286,15 @@ function applyRematchLocal() {
   hideOverlay();
 }
 
+function syncSpectatorCatchUp() {
+  if (netRole !== "host" || !netLink) return;
+  broadcastLobby();
+  if (netState && screen === "game") {
+    // 用 state 而非 start，避免已在局中的客机被当成 rematch
+    netLink.send({ type: "state", state: netState });
+  }
+}
+
 function onNetMessage(msg) {
   if (!msg || typeof msg !== "object") return;
   if (msg.type === "hello" || msg.type === "ping") {
@@ -1176,11 +1304,27 @@ function onNetMessage(msg) {
       broadcastLobby();
     } else if (netRole === "guest" && screen === "room") {
       netLink.send({ type: "join", role: "guest", name: localPlayerName() });
+    } else if (netRole === "spectator" && screen === "room") {
+      netLink.send({
+        type: "spectate-hello",
+        role: "spectator",
+        name: localPlayerName(),
+      });
     }
+    return;
+  }
+  if (msg.type === "spectate-hello") {
+    if (netRole !== "host") return;
+    syncSpectatorCatchUp();
     return;
   }
   if (msg.type === "join") {
     if (netRole !== "host") return;
+    // 第三人误发 join：按观战补发 lobby / state
+    if (lobby.peerPresent) {
+      syncSpectatorCatchUp();
+      return;
+    }
     if (netState && screen === "game") {
       netLink.send({ type: "start", state: netState });
       return;
@@ -1213,18 +1357,36 @@ function onNetMessage(msg) {
   }
   if (msg.type === "first") {
     if (netRole !== "host") return;
-    if (!lobby.peerPresent || lobby.phase !== "waiting") return;
     const seat = msg.seat === 0 || msg.seat === 1 ? msg.seat : null;
     if (seat == null) return;
-    if (lobby.firstSeat === seat) return;
-    lobby.firstSeat = seat;
-    lobby.ready = [false, false];
-    renderRoom();
-    broadcastLobby();
+    if (screen === "room" && lobby.phase === "waiting" && lobby.peerPresent) {
+      applyHostFirstSeat(seat, "lobby");
+      return;
+    }
+    if (isRematchPickPhase()) {
+      applyHostFirstSeat(seat, "rematch");
+    }
+    return;
+  }
+  if (msg.type === "first-sync") {
+    if (netRole === "host") return;
+    if (msg.firstSeat === 0 || msg.firstSeat === 1) {
+      lobby.firstSeat = msg.firstSeat;
+    }
+    if (Array.isArray(msg.again) && msg.again.length >= 2) {
+      roundAgain = [!!msg.again[0], !!msg.again[1]];
+    }
+    if (screen === "game") render();
+    else renderRoom();
     return;
   }
   if (msg.type === "start") {
-    if (netRole !== "guest" || !msg.state) return;
+    if (
+      (netRole !== "guest" && netRole !== "spectator") ||
+      !msg.state
+    ) {
+      return;
+    }
     if (screen === "game" || msg.rematch) applyRematchLocal();
     else beginNetMatch();
     applyNetSnapshot(msg.state);
@@ -1232,6 +1394,7 @@ function onNetMessage(msg) {
   }
   if (msg.type === "state") {
     if (!msg.state) return;
+    if (netRole === "spectator" && screen !== "game") beginNetMatch();
     applyNetSnapshot(msg.state);
     return;
   }
@@ -1266,6 +1429,21 @@ function onNetMessage(msg) {
     return;
   }
   if (msg.type === "leave") {
+    // 观战者进出不影响对局双方
+    if (msg.role === "spectator") return;
+    if (netRole === "spectator") {
+      if (screen === "room") {
+        // 房主/客机离开：观战跟着散
+        closeNetLink();
+        resetLobby();
+        showMenu();
+        return;
+      }
+      if (screen === "game") {
+        handleOpponentLeft();
+      }
+      return;
+    }
     if (screen === "room") {
       handleLobbyPeerLeft();
       return;
@@ -1302,7 +1480,7 @@ async function createRoom() {
     return;
   }
   renderRoom();
-  netLink.send({ type: "hello", role: "host", name: localPlayerName() });
+  netLink.send({ type: "hello", role: "host", seat: 0, name: localPlayerName() });
 }
 
 async function joinRoom() {
@@ -1315,12 +1493,32 @@ async function joinRoom() {
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 6);
   if (code.length < 4) {
+    lobby.joinError = true;
     renderRoom();
     return;
   }
   closeNetLink();
-  netRole = "guest";
-  netSeat = 1;
+  lobby._joinDraft = code;
+  lobby.joinError = false;
+  renderRoom();
+  try {
+    netLink = connectRoom(
+      code,
+      { onMessage: onNetMessage },
+      { intent: "join" }
+    );
+    await netLink.ready;
+  } catch (err) {
+    closeNetLink();
+    resetLobby();
+    lobby._joinDraft = code;
+    lobby.joinError = true;
+    renderRoom();
+    return;
+  }
+  // 进房成功：第二人为客机，第三人起观战
+  netRole = (netLink.peers || 0) >= 3 ? "spectator" : "guest";
+  netSeat = netRole === "spectator" ? null : 1;
   gameMode = "two";
   opponentLeft = false;
   lobby = {
@@ -1328,23 +1526,21 @@ async function joinRoom() {
     code,
     peerPresent: false,
     ready: [false, false],
-    names: ["", localPlayerName()],
+    names: netRole === "spectator" ? ["", ""] : ["", localPlayerName()],
     firstSeat: 0,
     _joinDraft: code,
+    joinError: false,
   };
   renderRoom();
-  try {
-    netLink = connectRoom(code, { onMessage: onNetMessage });
-    await netLink.ready;
-  } catch (err) {
-    closeNetLink();
-    resetLobby();
-    lobby._joinDraft = code;
-    renderRoom();
+  if (netRole === "spectator") {
+    netLink.send({
+      type: "spectate-hello",
+      role: "spectator",
+      name: localPlayerName(),
+    });
     return;
   }
-  renderRoom();
-  netLink.send({ type: "join", role: "guest", name: localPlayerName() });
+  netLink.send({ type: "join", role: "guest", seat: 1, name: localPlayerName() });
 }
 
 /** 多人：对手离开 */
@@ -1362,7 +1558,11 @@ function handleOpponentLeft() {
 function leaveGame() {
   if (gameMode === "two" && netLink) {
     try {
-      netLink.send({ type: "leave" });
+      netLink.send({
+        type: "leave",
+        role: netRole,
+        seat: netSeat,
+      });
     } catch {
       /* ignore */
     }
@@ -1571,7 +1771,11 @@ function restart() {
 function leaveRoomScreen() {
   if (netLink) {
     try {
-      netLink.send({ type: "leave" });
+      netLink.send({
+        type: "leave",
+        role: netRole,
+        seat: netSeat,
+      });
     } catch {
       /* ignore */
     }

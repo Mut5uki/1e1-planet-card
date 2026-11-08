@@ -99,6 +99,8 @@ function leaveRoom(ws, { notify = true } = {}) {
     const leaveMsg = JSON.stringify({
       type: "leave",
       room: id,
+      role: ws.__role || null,
+      seat: ws.__seat === 0 || ws.__seat === 1 ? ws.__seat : null,
       t: Date.now(),
       via: "disconnect",
     });
@@ -106,9 +108,11 @@ function leaveRoom(ws, { notify = true } = {}) {
       if (peer.readyState === 1) peer.send(leaveMsg);
     }
   }
+  ws.__role = null;
+  ws.__seat = null;
 }
 
-function joinRoom(ws, roomId) {
+function joinRoom(ws, roomId, { requireExisting = false } = {}) {
   const id = String(roomId || "")
     .trim()
     .toUpperCase();
@@ -118,11 +122,13 @@ function joinRoom(ws, roomId) {
   leaveRoom(ws, { notify: true });
 
   let set = rooms.get(id);
-  if (!set) {
+  if (!set || set.size === 0) {
+    if (requireExisting) return { ok: false, error: "room-missing" };
     set = new Set();
     rooms.set(id, set);
   }
-  if (set.size >= 2) return { ok: false, error: "room-full" };
+  // 前两人入座，第三人起观战
+  if (set.size >= 16) return { ok: false, error: "room-full" };
 
   set.add(ws);
   ws.__room = id;
@@ -141,7 +147,9 @@ function relay(ws, raw) {
   // 控制帧：进房（也可直接靠业务消息里的 room）
   if (msg.type === "_join" || msg.type === "_ping") {
     if (msg.type === "_join") {
-      const result = joinRoom(ws, msg.room);
+      const result = joinRoom(ws, msg.room, {
+        requireExisting: msg.intent === "join",
+      });
       ws.send(JSON.stringify({ type: "_joined", ...result, t: Date.now() }));
     } else {
       ws.send(JSON.stringify({ type: "_pong", t: Date.now() }));
@@ -162,6 +170,19 @@ function relay(ws, raw) {
     }
   }
 
+  if (
+    msg.type === "hello" ||
+    msg.type === "join" ||
+    msg.type === "spectate-hello" ||
+    msg.type === "leave"
+  ) {
+    ws.__role =
+      msg.type === "spectate-hello"
+        ? "spectator"
+        : msg.role || ws.__role || null;
+    if (msg.seat === 0 || msg.seat === 1) ws.__seat = msg.seat;
+  }
+
   const set = rooms.get(id);
   if (!set) return;
   const out = JSON.stringify({ ...msg, room: id });
@@ -176,15 +197,27 @@ wss.on("connection", (ws, req) => {
   ws.on("close", () => leaveRoom(ws, { notify: true }));
   ws.on("error", () => leaveRoom(ws, { notify: true }));
 
-  // 与 Cloudflare 一致：/ws?room=CODE 连上即进房
+  // 与 Cloudflare 一致：/ws?room=CODE 连上即进房；intent=join 要求房间已存在
   try {
     const u = new URL(req.url || "/ws", "http://localhost");
     const room = String(u.searchParams.get("room") || "")
       .trim()
       .toUpperCase();
+    const intent = String(u.searchParams.get("intent") || "")
+      .trim()
+      .toLowerCase();
     if (room) {
-      const result = joinRoom(ws, room);
+      const result = joinRoom(ws, room, {
+        requireExisting: intent === "join",
+      });
       ws.send(JSON.stringify({ type: "_joined", ...result, t: Date.now() }));
+      if (!result.ok) {
+        try {
+          ws.close(1008, result.error || "join-failed");
+        } catch {
+          /* ignore */
+        }
+      }
     }
   } catch {
     /* ignore */

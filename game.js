@@ -336,3 +336,16 @@ export function netToLocalView(netState, seat) {
     lastEvent: netState.lastEvent,
   };
 }
+
+/** 观战：固定 seat0 在下 / seat1 在上，双方手牌与 pending 可见 */
+export function netToSpectatorView(netState) {
+  const view = netToLocalView(netState, 0);
+  if (netState.pending) {
+    view.pending = {
+      card: netState.pending.card,
+      source: netState.pending.source,
+      phase: netState.pending.phase,
+    };
+  }
+  return view;
+}
