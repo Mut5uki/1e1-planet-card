@@ -4,7 +4,6 @@ import {
   UI,
   alienNumberParts,
   numberFileGlyph,
-  cardFace,
   word,
   publicTakeSentence,
   publicDiscardSentence,
@@ -564,7 +563,10 @@ function takeDeck() {
 }
 function beginPending(card, source) {
   if (source === "public") state.publicCard = null;
+  // 自己开始操作 ↔ 清对手提示；对手开始操作 ↔ 清本方提示
   playerInfo = null;
+  opponentInfo = null;
+  opponentMarks = null;
   pending = { card, source, phase: "insert" };
   render();
 }
@@ -597,14 +599,14 @@ function chooseDiscard(index) {
   if (result.win) {
     state.winner = "player";
     creditWin("player");
+    hideOverlay();
     render();
-    showOverlay(UI.playerMark(), formatMelds(state.player, result.melds));
     return;
   }
   if (state.deck.length === 0) {
     state.draw = true;
+    hideOverlay();
     render();
-    showOverlay(numberSvg(0), "");
     return;
   }
   state.turn = "opponent";
@@ -612,23 +614,13 @@ function chooseDiscard(index) {
   setTimeout(runOpponentTurn, 450);
 }
 
-function formatMelds(hand, melds) {
-  return melds
-    .map((m) => {
-      const cards = hand
-        .slice(m.start, m.end + 1)
-        .map((c) => `<div class="meld-card">${cardFace(c)}</div>`)
-        .join("");
-      return `<div class="meld-row">${cards}</div>`;
-    })
-    .join("");
-}
-
 async function runOpponentTurn() {
   // 双人联机：对手由另一标签操作，禁止本机 AI
   if (gameMode === "two") return;
   if (state.winner || state.draw || opponentLeft) return;
   busy = true;
+  // 对手开始行动：清本方提示
+  playerInfo = null;
   opponentMarks = null;
   render();
   await wait(400);
@@ -644,8 +636,8 @@ async function runOpponentTurn() {
   if (source === "deck" && state.deck.length === 0) {
     state.draw = true;
     busy = false;
+    hideOverlay();
     render();
-    showOverlay(numberSvg(0), "");
     return;
   }
 
@@ -689,18 +681,15 @@ async function runOpponentTurn() {
     state.winner = "opponent";
     creditWin("opponent");
     busy = false;
+    hideOverlay();
     render();
-    showOverlay(
-      UI.player2Mark(),
-      formatMelds(state.opponent, checkWin(state.opponent).melds)
-    );
     return;
   }
   if (state.deck.length === 0) {
     state.draw = true;
     busy = false;
+    hideOverlay();
     render();
-    showOverlay(numberSvg(0), "");
     return;
   }
   state.turn = "player";
@@ -709,11 +698,6 @@ async function runOpponentTurn() {
   render();
 }
 
-function showOverlay(titleHtml, bodyHtml) {
-  els.overlay.hidden = false;
-  els.overlayTitle.innerHTML = titleHtml;
-  els.overlayBody.innerHTML = bodyHtml || "";
-}
 function hideOverlay() {
   els.overlay.hidden = true;
 }
@@ -1056,6 +1040,8 @@ function applyNetSnapshot(next) {
 
   const ev = view.lastEvent;
   if (ev && ev.seat !== netSeat) {
+    // 对手行动：更新对手提示（保留到其下一手）；清本方提示
+    playerInfo = null;
     if (ev.kind === "takePublic") {
       opponentInfo = opponentTakePublicPrefix();
       opponentMarks = null;
@@ -1075,27 +1061,24 @@ function applyNetSnapshot(next) {
         taken: ev.source === "public" ? ev.taken : null,
       };
     }
-  } else if (ev && ev.seat === netSeat && ev.kind === "give") {
-    playerInfo = youGiveSentence(ev.card);
+  } else if (ev && ev.seat === netSeat) {
+    // 自己行动：清对手提示
+    opponentInfo = null;
     opponentMarks = null;
+    if (ev.kind === "give") playerInfo = youGiveSentence(ev.card);
+    else playerInfo = null;
   }
 
   render();
 
   if (state.winner === "player") {
     creditWin("player");
-    showOverlay(
-      UI.playerMark(),
-      formatMelds(state.player, checkWin(state.player).melds)
-    );
+    hideOverlay();
   } else if (state.winner === "opponent") {
     creditWin("opponent");
-    showOverlay(
-      UI.player2Mark(),
-      formatMelds(state.opponent, checkWin(state.opponent).melds)
-    );
+    hideOverlay();
   } else if (state.draw) {
-    showOverlay(numberSvg(0), "");
+    hideOverlay();
   }
 }
 
