@@ -897,7 +897,8 @@ function renderRoom() {
       onClick: () => joinRoom(),
     });
   } else {
-    if (lobby.code) {
+    // 双方都进房后隐藏房间码与 click for copy…；仅一人时仍显示便于分享
+    if (lobby.code && !lobby.peerPresent) {
       put(
         3,
         5,
@@ -909,7 +910,6 @@ function renderRoom() {
           onClick: () => copyRoomCode(),
         }
       );
-      // 房间码下方：click for copy then share to other
       put(2, 6, UI.click(), { className: "mid-glyph" });
       put(3, 6, UI.for(), { className: "mid-glyph" });
       put(4, 6, UI.copy(), { className: "mid-glyph" });

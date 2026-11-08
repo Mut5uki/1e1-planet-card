@@ -2,9 +2,8 @@
   --bg: #000000;
   /* 符号色：由 word color 设置写入 */
   --line: #ffe6b3;
-  /* 线框：参考原版更淡、更闷 */
+  /* 线框：参考原版更淡、更闷（线宽随 --glyph 等比，见下） */
   --frame: rgba(255, 230, 179, 0.72);
-  --frame-w: 2.75px;
   /* 顶部分割：对手牌槽顶线位置 */
   --divider: #ffe6b3;
   --divider-w: 3px;
@@ -13,9 +12,12 @@
   --board-max-w: 1080px;
   --board-aspect-w: 12;
   --board-aspect-h: 10.2;
-  /* 对齐原版槽位：字形居中尺寸 */
+  /* 桌面基准；#app 内按格宽重算，避免整页 vmin 把符号算小 */
   --glyph: 68px;
   --glyph-gap: 6px;
+  --glyph-lift: calc(var(--glyph) * 0.18);
+  --frame-w: 2.75px;
+  --terran-size: clamp(10px, calc(var(--glyph) * 0.24), 18px);
   /* 地球人语言（英文）统一字体 */
   --font-terran: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -65,14 +67,18 @@ body {
 }
 
 #app {
-  /* 锁比例并限制最大宽度；略增高使上下稍长 */
+  /* 锁比例塞进视口；按棋盘格宽定字形（≈0.78 格），桌面回到 68 */
+  container-type: size;
+  --glyph: clamp(26px, calc(100cqw / 12 * 0.78), 68px);
+  --glyph-lift: calc(var(--glyph) * 0.18);
+  --terran-size: clamp(10px, calc(var(--glyph) * 0.24), 18px);
   width: min(
     100vw - 0.6vw,
-    calc(100vh * var(--board-aspect-w) / var(--board-aspect-h)),
+    calc(100dvh * var(--board-aspect-w) / var(--board-aspect-h)),
     var(--board-max-w)
   );
   height: min(
-    100vh - 0.8vh,
+    100dvh - 0.8vh,
     calc((100vw - 0.6vw) * var(--board-aspect-h) / var(--board-aspect-w)),
     calc(var(--board-max-w) * var(--board-aspect-h) / var(--board-aspect-w))
   );
@@ -138,7 +144,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.4em;
+  gap: 0.12em;
 }
 .menu-board .menu-brand-row .sq {
   width: min(68%, calc(var(--glyph) * 2.9)) !important;
@@ -225,19 +231,21 @@ body {
   max-width: 100%;
   max-height: 100%;
   aspect-ratio: 1;
-  --glyph-lift: 12px;
   transform: translateY(calc(-1 * var(--glyph-lift)));
 }
 .terran-lang {
   position: absolute;
   left: 50%;
   top: 50%;
-  /* 贴在字形下沿外侧（字形半高 + 间距） */
-  transform: translate(-50%, calc(min(39%, 34px) + 14px));
+  /* 贴紧上移后的字形下沿（抵消 --glyph-lift） */
+  transform: translate(
+    -50%,
+    calc(var(--glyph) * 0.5 - var(--glyph-lift) + 1px)
+  );
   margin: 0;
   padding: 0;
   font-family: var(--font-terran);
-  font-size: clamp(13px, 1.9vw, 18px);
+  font-size: var(--terran-size);
   line-height: 1;
   font-weight: 400;
   font-style: normal;
@@ -249,6 +257,30 @@ body {
 }
 html.hide-terran .terran-lang {
   display: none !important;
+}
+
+/* 仅手机：英文略小、位置略贴字形；桌面保持现状 */
+@media (max-width: 720px) {
+  #app {
+    --terran-size: clamp(8px, calc(var(--glyph) * 0.18), 13px);
+  }
+  .terran-lang {
+    transform: translate(
+      -50%,
+      calc(var(--glyph) * 0.46 - var(--glyph-lift) + 1px)
+    );
+  }
+  .room-title-glyphs .terran-lang,
+  .room-leave .terran-lang,
+  .room-glyph-btn-inner .terran-lang {
+    transform: translate(-50%, calc(var(--glyph) * 0.38));
+  }
+  .menu-board .menu-brand-row > .glyph-stack {
+    gap: 0.1em;
+  }
+  .menu-board .menu-brand-row .terran-lang {
+    font-size: clamp(11px, 2.8vw, 14px);
+  }
 }
 
 .glyph-hit {
@@ -264,7 +296,6 @@ html.hide-terran .terran-lang {
   cursor: pointer;
   background: transparent;
   /* 与无判定字形同一上移，判定框跟着走 */
-  --glyph-lift: 12px;
   transform: translateY(calc(-1 * var(--glyph-lift)));
 }
 .glyph-hit:hover {
@@ -346,7 +377,6 @@ html.hide-terran .terran-lang {
   position: relative;
   padding: 0;
   /* 与 mid-glyph 字形同幅度上移，线和相邻字形对齐 */
-  --glyph-lift: 12px;
   transform: translateY(calc(-1 * var(--glyph-lift)));
 }
 .room-board .room-code-blank-cell::after,
@@ -356,7 +386,7 @@ html.hide-terran .terran-lang {
   left: 8%;
   right: 8%;
   top: 50%;
-  margin-top: calc(min(39%, 34px) + 2px);
+  margin-top: calc(var(--glyph) * 0.5 + 2px);
   border-bottom: var(--frame-w) solid var(--line);
   pointer-events: none;
   opacity: 0.9;
@@ -369,7 +399,7 @@ html.hide-terran .terran-lang {
   background: transparent;
   color: var(--line);
   font-family: var(--font-terran);
-  font-size: clamp(22px, 3.2vw, 34px);
+  font-size: clamp(16px, calc(var(--glyph) * 0.42), 34px);
   letter-spacing: 0.22em;
   text-align: center;
   text-transform: uppercase;
@@ -381,11 +411,11 @@ html.hide-terran .terran-lang {
 .menu-board .menu-name-input {
   text-transform: none;
   letter-spacing: 0.08em;
-  font-size: clamp(18px, 2.6vw, 26px);
+  font-size: clamp(14px, calc(var(--glyph) * 0.36), 26px);
 }
 .room-board .room-code-text {
   font-family: var(--font-terran);
-  font-size: clamp(28px, 4.2vw, 44px);
+  font-size: clamp(20px, calc(var(--glyph) * 0.58), 44px);
   letter-spacing: 0.28em;
   font-weight: 600;
   color: var(--line);
@@ -399,7 +429,7 @@ html.hide-terran .terran-lang {
 }
 .room-board .room-name-cell {
   font-family: var(--font-terran);
-  font-size: clamp(18px, 2.6vw, 28px);
+  font-size: clamp(14px, calc(var(--glyph) * 0.38), 28px);
   letter-spacing: 0.06em;
   color: var(--line);
   text-align: center;
@@ -458,7 +488,7 @@ html.hide-terran .terran-lang {
 }
 .room-title-glyphs .terran-lang,
 .room-leave .terran-lang {
-  transform: translate(-50%, calc(var(--glyph) * 0.5 + 4px));
+  transform: translate(-50%, calc(var(--glyph) * 0.42));
 }
 .room-leave {
   appearance: none;
@@ -681,7 +711,7 @@ html.hide-terran .terran-lang {
   transform: none !important;
 }
 .room-glyph-btn-inner .terran-lang {
-  transform: translate(-50%, calc(var(--glyph) * 0.5 + 2px));
+  transform: translate(-50%, calc(var(--glyph) * 0.42));
 }
 /* 房间码填空线（对应原 ROOM 输入框） */
 .room-code-blank {
@@ -825,8 +855,8 @@ html.hide-terran .terran-lang {
 
 .glyph.sq,
 .sq {
-  width: min(82%, 72px);
-  height: min(82%, 72px);
+  width: min(82%, var(--glyph));
+  height: min(82%, var(--glyph));
   aspect-ratio: 1;
   max-width: 100%;
   max-height: 100%;
@@ -845,9 +875,7 @@ html.hide-terran .terran-lang {
   mask-size: contain;
   mask-repeat: no-repeat;
   mask-position: center;
-  /* 去掉 per-glyph drop-shadow（大量字形时很吃帧） */
-  /* 字形统一上移；判定外壳同步，避免有判定的矮一截 */
-  --glyph-lift: 12px;
+  /* 字形统一上移（--glyph-lift 随棋盘等比） */
   transform: translateY(calc(-1 * var(--glyph-lift)));
 }
 
@@ -975,8 +1003,8 @@ html.hide-terran .terran-lang {
   place-items: center;
 }
 .cell.badge-wide .sq {
-  width: min(90%, 132px);
-  height: min(72%, 68px);
+  width: min(90%, calc(var(--glyph) * 1.95));
+  height: min(72%, var(--glyph));
 }
 .cell.badge-corner {
   place-items: center;
