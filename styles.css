@@ -267,13 +267,13 @@ html.hide-terran .terran-lang {
   .terran-lang {
     transform: translate(
       -50%,
-      calc(var(--glyph) * 0.46 - var(--glyph-lift) + 1px)
+      calc(var(--glyph) * 0.46 - var(--glyph-lift) - 1px)
     );
   }
   .room-title-glyphs .terran-lang,
   .room-leave .terran-lang,
   .room-glyph-btn-inner .terran-lang {
-    transform: translate(-50%, calc(var(--glyph) * 0.38));
+    transform: translate(-50%, calc(var(--glyph) * 0.38 - 2px));
   }
   .menu-board .menu-brand-row > .glyph-stack {
     gap: 0.1em;
