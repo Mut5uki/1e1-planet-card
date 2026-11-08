@@ -10,7 +10,7 @@ const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /** 公网中继（Cloudflare）。打开 workers 页时走同源；本地/其它托管则回落到这里 */
 export const PUBLIC_RELAY_BASE =
-  "wss://planet-cards.difficult-saffron.workers.dev/ws";
+  "wss://planet-cards-web.pages.dev/ws";
 
 export function createRoomCode(len = 4) {
   let s = "";

@@ -37,6 +37,33 @@ body {
   overflow: hidden;
 }
 
+/* 首屏预载 */
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  transition: opacity 0.28s ease;
+}
+.boot.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+.boot-bar {
+  width: min(42vw, 280px);
+  height: 2px;
+  background: rgba(255, 230, 179, 0.18);
+  overflow: hidden;
+}
+.boot-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--line);
+  transition: width 0.12s linear;
+}
+
 #app {
   /* 锁比例并限制最大宽度；略增高使上下稍长 */
   width: min(
@@ -75,45 +102,96 @@ body {
   display: none !important;
 }
 
-/* —— 主界面 —— */
+/* —— 主界面：同房间/设置，12×9 mid-glyph —— */
 .menu {
-  position: relative;
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  place-items: stretch;
+  background: var(--bg);
+  color: var(--line);
+}
+.menu[hidden] {
+  display: none !important;
+}
+.menu-board::before {
+  display: none;
+}
+/* 主界面标题：跨满 12 列，内宽 9/12 真正居中；每槽≈3 列 */
+.menu-board > .cell.menu-brand-cell {
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  padding: 0;
+}
+.menu-board .menu-brand-row {
+  width: 75%; /* 9/12：左右各留 1.5 列，光学居中 */
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   justify-items: center;
-  padding: 6% 5% 8%;
-  background:
-    radial-gradient(ellipse 80% 55% at 50% 28%, rgba(232, 176, 122, 0.08), transparent 70%),
-    var(--bg);
+  gap: 0;
 }
-
-/* 主界面右下：modify game（约两格宽） */
-.menu-modify {
-  position: absolute;
-  bottom: 2.5%;
-  right: 8.5%;
-  width: calc(100% / 12 * 2);
-  min-height: calc(100% / 9);
+.menu-board .menu-brand-row > .glyph-stack {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+}
+.menu-board .menu-brand-row .sq {
+  width: min(68%, calc(var(--glyph) * 2.9)) !important;
+  height: min(68%, calc(var(--glyph) * 2.9)) !important;
+  max-width: none !important;
+  max-height: none !important;
+  flex: 0 0 auto;
+  --glyph-lift: 0px;
+  transform: none !important;
+}
+.menu-board .menu-brand-row .terran-lang {
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  font-size: clamp(14px, 2.1vw, 20px);
+  line-height: 1;
+}
+/* 选项 / modify / 房间入口：判定区=跨格整块，字形按列均分 */
+.menu-board > .cell.menu-hit-group,
+.room-board > .cell.menu-hit-group {
+  display: grid;
+  place-items: stretch;
+  padding: 0;
+  gap: 0;
+  cursor: pointer;
   appearance: none;
   border: none;
   background: transparent;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  padding: 0;
   color: var(--line);
 }
-.menu-modify:hover,
-.menu-modify:focus-visible {
-  background: var(--hover);
-  outline: none;
+.menu-board > .cell.menu-hit-group.cols-3,
+.room-board > .cell.menu-hit-group.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.menu-modify-glyphs {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+.menu-board > .cell.menu-hit-group.cols-2,
+.room-board > .cell.menu-hit-group.cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.menu-board > .cell.menu-hit-group > .glyph-stack,
+.room-board > .cell.menu-hit-group > .glyph-stack {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+.menu-board > .cell.menu-hit-group .sq,
+.room-board > .cell.menu-hit-group .sq {
+  width: min(78%, var(--glyph)) !important;
+  height: min(78%, var(--glyph)) !important;
+  max-width: none !important;
+  max-height: none !important;
 }
 
 .settings {
@@ -227,144 +305,6 @@ html.hide-terran .terran-lang {
   place-items: stretch;
 }
 
-.menu-choice-glyphs .glyph-stack,
-.menu-modify-glyphs .glyph-stack {
-  width: auto;
-  height: auto;
-  min-width: var(--glyph);
-  min-height: calc(var(--glyph) + 1.2em);
-}
-.menu-choice-glyphs .sq,
-.menu-modify-glyphs .sq {
-  width: var(--glyph);
-  height: var(--glyph);
-  min-height: var(--glyph);
-  max-width: none;
-  max-height: none;
-}
-
-.menu-brand {
-  --title-glyph: clamp(152px, 23vw, 236px);
-  margin: 0;
-  display: grid;
-  place-items: center;
-  animation: menu-brand-in 0.7s ease-out both;
-}
-.menu-brand-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(4px, 0.8vw, 12px);
-}
-.menu-brand-row .glyph-stack {
-  width: auto;
-  height: auto;
-  min-width: var(--title-glyph);
-  min-height: calc(var(--title-glyph) + 1.1em);
-}
-/* 提高优先级，避免被 .glyph-stack > .sq 盖掉 */
-.menu-brand-row .glyph-stack > .sq,
-.menu-brand-row .sq {
-  width: var(--title-glyph) !important;
-  height: var(--title-glyph) !important;
-  min-height: var(--title-glyph) !important;
-  max-width: none !important;
-  max-height: none !important;
-  --glyph-lift: 0px;
-  transform: none !important;
-}
-/* 标题英文保持全站 terran 字号；贴紧字形 */
-.menu-brand-row .terran-lang {
-  font-size: clamp(13px, 1.9vw, 18px);
-  transform: translate(-50%, calc(var(--title-glyph) * 0.5 + 4px));
-}
-
-/* you de name be ________ */
-.menu-name-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: clamp(6px, 1.2vw, 14px);
-  width: min(100%, 820px);
-  margin-top: clamp(18px, 4vh, 36px);
-  color: var(--line);
-}
-.menu-name-glyphs {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--glyph-gap);
-  flex-wrap: wrap;
-}
-.menu-name-glyphs .glyph-stack {
-  width: auto;
-  height: auto;
-  min-width: var(--glyph);
-  min-height: calc(var(--glyph) + 1.2em);
-}
-.menu-name-glyphs .glyph-stack > .sq,
-.menu-name-glyphs .sq {
-  width: var(--glyph) !important;
-  height: var(--glyph) !important;
-  min-height: var(--glyph) !important;
-  max-width: none !important;
-  max-height: none !important;
-  --glyph-lift: 0px;
-  transform: none !important;
-}
-.menu-name-glyphs .terran-lang {
-  transform: translate(-50%, calc(var(--glyph) * 0.5 + 4px));
-}
-/* 填空线：跟在四个字形后面 */
-.menu-name-blank {
-  position: relative;
-  display: grid;
-  align-items: end;
-  min-width: clamp(7em, 26vw, 11em);
-  height: calc(var(--glyph) + 1.2em);
-  padding-bottom: 0.15em;
-}
-.menu-name-blank::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0.35em;
-  border-bottom: var(--frame-w) solid var(--line);
-  pointer-events: none;
-}
-.menu-name-input {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: var(--line);
-  font-family: var(--font-terran);
-  font-size: clamp(18px, 2.6vw, 26px);
-  letter-spacing: 0.08em;
-  width: 100%;
-  padding: 0 2px 6px;
-  text-align: center;
-  caret-color: var(--line);
-  z-index: 1;
-}
-.menu-name-input::placeholder {
-  color: transparent;
-}
-.menu-name-input:focus {
-  outline: none;
-}
-
-.menu-choices {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(16px, 3vw, 40px);
-  width: min(100%, 820px);
-  align-self: end;
-  margin-top: clamp(28px, 10vh, 96px);
-  margin-bottom: clamp(24px, 6vh, 56px);
-}
-
 /* 双人准备房间：自有布局，格子/字形规格对齐对局 mid-glyph */
 .room {
   display: grid;
@@ -389,13 +329,15 @@ html.hide-terran .terran-lang {
 .room-board > .cell.room-code-cell:hover {
   background: var(--hover);
 }
-/* 填空格：与两侧 create/join 同高同格，下划线对齐字形下沿 */
-.room-board > .cell.room-join-blank {
+/* 填空格：与两侧字形同高同格，下划线对齐字形下沿（房间码 / 主界面姓名） */
+.room-board > .cell.room-join-blank,
+.menu-board > .cell.room-join-blank {
   place-items: stretch;
   padding: 0;
   pointer-events: auto;
 }
-.room-board .room-code-blank-cell {
+.room-board .room-code-blank-cell,
+.menu-board .room-code-blank-cell {
   width: 100%;
   height: 100%;
   display: grid;
@@ -403,11 +345,12 @@ html.hide-terran .terran-lang {
   box-sizing: border-box;
   position: relative;
   padding: 0;
-  /* 与 mid-glyph 字形同幅度上移，线和 create/join 对齐 */
+  /* 与 mid-glyph 字形同幅度上移，线和相邻字形对齐 */
   --glyph-lift: 12px;
   transform: translateY(calc(-1 * var(--glyph-lift)));
 }
-.room-board .room-code-blank-cell::after {
+.room-board .room-code-blank-cell::after,
+.menu-board .room-code-blank-cell::after {
   content: "";
   position: absolute;
   left: 8%;
@@ -418,14 +361,15 @@ html.hide-terran .terran-lang {
   pointer-events: none;
   opacity: 0.9;
 }
-.room-board .room-input {
+.room-board .room-input,
+.menu-board .room-input {
   width: 84%;
   border: none;
   outline: none;
   background: transparent;
   color: var(--line);
   font-family: var(--font-terran);
-  font-size: clamp(16px, 2.4vw, 24px);
+  font-size: clamp(22px, 3.2vw, 34px);
   letter-spacing: 0.22em;
   text-align: center;
   text-transform: uppercase;
@@ -434,21 +378,29 @@ html.hide-terran .terran-lang {
   padding: 0;
   margin: 0;
 }
+.menu-board .menu-name-input {
+  text-transform: none;
+  letter-spacing: 0.08em;
+  font-size: clamp(18px, 2.6vw, 26px);
+}
 .room-board .room-code-text {
   font-family: var(--font-terran);
-  font-size: clamp(20px, 3vw, 32px);
-  letter-spacing: 0.26em;
+  font-size: clamp(28px, 4.2vw, 44px);
+  letter-spacing: 0.28em;
   font-weight: 600;
   color: var(--line);
-  padding-left: 0.26em;
+  padding-left: 0.28em;
   line-height: 1;
   align-self: center;
   justify-self: center;
 }
+.room-board > .cell.room-code-lg {
+  place-items: center;
+}
 .room-board .room-name-cell {
   font-family: var(--font-terran);
-  font-size: clamp(12px, 1.6vw, 16px);
-  letter-spacing: 0.04em;
+  font-size: clamp(18px, 2.6vw, 28px);
+  letter-spacing: 0.06em;
   color: var(--line);
   text-align: center;
   max-width: 100%;
@@ -457,6 +409,9 @@ html.hide-terran .terran-lang {
   white-space: nowrap;
   align-self: center;
   justify-self: center;
+}
+.room-board > .cell.room-name-wide {
+  place-items: center;
 }
 .room-board .room-hint-cell {
   font-family: var(--font-terran);
@@ -822,61 +777,6 @@ html.hide-terran .terran-lang {
   }
 }
 
-.menu-choice {
-  appearance: none;
-  border: var(--frame-w) solid var(--frame);
-  background: transparent;
-  color: var(--line);
-  cursor: pointer;
-  padding: clamp(18px, 3vh, 36px) clamp(12px, 2vw, 24px);
-  display: grid;
-  place-items: center;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-  animation: menu-choice-in 0.55s ease-out both;
-}
-.menu-choice:nth-child(1) { animation-delay: 0.18s; }
-.menu-choice:nth-child(2) { animation-delay: 0.28s; }
-
-.menu-choice:hover,
-.menu-choice:focus-visible {
-  background: var(--hover);
-  border-color: var(--line);
-  outline: none;
-  transform: translateY(-2px);
-}
-
-.menu-choice:active {
-  transform: translateY(0);
-}
-
-.menu-choice-glyphs {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--glyph-gap);
-  flex-wrap: wrap;
-}
-
-@keyframes menu-brand-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes menu-choice-in {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 560px) {
-  .menu {
-    grid-template-rows: auto auto 1fr;
-    padding-top: 12%;
-  }
-  .menu-choices {
-    grid-template-columns: 1fr;
-    width: 100%;
-  }
-}
-
 /* 12×9：顶行留空 + 上牌区 2 + 中区 4 + 下牌区 2 */
 .board-12x9 {
   position: relative;
@@ -887,6 +787,9 @@ html.hide-terran .terran-lang {
   height: 100%;
   min-height: 0;
   overflow: visible;
+  contain: layout;
+  /* 合成层：滚动/刷新时少拖累整页 */
+  transform: translateZ(0);
 }
 
 /* 亮粗分割线：对齐对手牌槽顶部，横向铺满视口 */
@@ -900,7 +803,6 @@ html.hide-terran .terran-lang {
   height: var(--divider-w);
   margin-top: calc(var(--divider-w) / -2);
   background: var(--divider);
-  box-shadow: 0 0 1px var(--divider);
   z-index: 6;
   pointer-events: none;
 }
@@ -917,6 +819,8 @@ html.hide-terran .terran-lang {
   color: var(--line);
   position: relative;
   overflow: visible;
+  /* 限制重排/重绘范围，减轻整板刷新卡顿 */
+  contain: layout style;
 }
 
 .glyph.sq,
@@ -941,7 +845,7 @@ html.hide-terran .terran-lang {
   mask-size: contain;
   mask-repeat: no-repeat;
   mask-position: center;
-  filter: drop-shadow(0 0 0.55px var(--line));
+  /* 去掉 per-glyph drop-shadow（大量字形时很吃帧） */
   /* 字形统一上移；判定外壳同步，避免有判定的矮一截 */
   --glyph-lift: 12px;
   transform: translateY(calc(-1 * var(--glyph-lift)));
@@ -1016,6 +920,11 @@ html.hide-terran .terran-lang {
     inset 0 calc(-1 * var(--frame-w)) 0 var(--frame),
     inset var(--frame-w) 0 0 var(--frame),
     inset calc(-1 * var(--frame-w)) 0 0 var(--frame);
+}
+.cell.vt.vb {
+  box-shadow:
+    inset 0 var(--frame-w) 0 var(--frame),
+    inset 0 calc(-1 * var(--frame-w)) 0 var(--frame);
 }
 .cell.vt.vb.vl {
   box-shadow:

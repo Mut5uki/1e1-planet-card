@@ -11,18 +11,11 @@ import {
   opponentTakePublicPrefix,
   opponentTakeDeckPrefix,
   andGiveSuffix,
-  menuTitleGlyphs,
-  singlePlayerGlyphs,
-  twoPlayerGlyphs,
-  youNameBeGlyphs,
-  createRoomGlyphs,
-  joinRoomGlyphs,
-  modifyGameGlyphs,
   opponentLeaveGlyphs,
   colorSwatchGlyph,
   turnYouActionSentence,
   turnOpponentActionSentence,
-} from "./icons.js?v=40";
+} from "./icons.js?v=43";
 import {
   dealNewGame,
   checkWin,
@@ -42,8 +35,9 @@ import {
   setWordColor,
   setHideTerran,
   setPlayerName,
-} from "./settings.js?v=34";
+} from "./settings.js?v=35";
 import { createRoomCode, connectRoom } from "./net.js?v=34";
+import { preloadAssets } from "./preload.js";
 
 /**
  * 12×9 棋盘（顶行留空）
@@ -63,22 +57,16 @@ const Y_PLAYER = 7;
 const boardEl = document.getElementById("board");
 const settingsBoardEl = document.getElementById("settings-board");
 const roomBoardEl = document.getElementById("room-board");
+const menuBoardEl = document.getElementById("menu-board");
 const els = {
   menu: document.getElementById("menu"),
   game: document.getElementById("game"),
   settings: document.getElementById("settings"),
-  menuTitle: document.getElementById("menu-title"),
-  menuNameGlyphs: document.getElementById("menu-name-glyphs"),
-  playerName: document.getElementById("player-name"),
-  menuModifyGlyphs: document.getElementById("menu-modify-glyphs"),
-  btnMenuModify: document.getElementById("btn-menu-modify"),
-  choiceSingle: document.getElementById("choice-single"),
-  choiceTwo: document.getElementById("choice-two"),
-  btnSingle: document.getElementById("btn-single"),
-  btnTwo: document.getElementById("btn-two"),
   room: document.getElementById("room"),
   /** 房间码输入（renderRoom 后挂到棋盘格内） */
   roomInput: null,
+  /** 主界面姓名输入（renderMenu 后挂到棋盘格内） */
+  menuNameInput: null,
   overlay: document.getElementById("overlay"),
   overlayTitle: document.getElementById("overlay-title"),
   overlayBody: document.getElementById("overlay-body"),
@@ -195,6 +183,15 @@ function frameCards(x0, x1, y0, y1, badgeCols = 2) {
   }
 }
 
+/** 单行外框（无内部分隔）：用于主界面选项等 */
+function frameRow(x0, x1, y) {
+  for (let x = x0; x <= x1; x++) {
+    addClass(x, y, "vt", "vb");
+    if (x === x0) addClass(x, y, "vl");
+    if (x === x1) addClass(x, y, "vr");
+  }
+}
+
 function escapeText(s) {
   return String(s ?? "")
     .replace(/&/g, "&amp;")
@@ -259,7 +256,7 @@ function putSentence(glyphs, y) {
 }
 
 function flushTo(target) {
-  target.innerHTML = "";
+  const frag = document.createDocumentFragment();
   const skip = new Set();
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < 12; x++) {
@@ -278,7 +275,7 @@ function flushTo(target) {
           if (dx || dy) skip.add(key(x + dx, y + dy));
         }
       }
-      el.innerHTML = cell.html;
+      if (cell.html) el.innerHTML = cell.html;
       if (cell.tag === "button") {
         el.type = "button";
         el.disabled = !!cell.disabled;
@@ -287,13 +284,30 @@ function flushTo(target) {
         el.classList.add("clickable");
         el.addEventListener("click", cell.onClick);
       }
-      target.appendChild(el);
+      frag.appendChild(el);
     }
   }
+  target.replaceChildren(frag);
 }
 
 function flush() {
   flushTo(boardEl);
+}
+
+/** 同帧多次 render 合并成一次绘制 */
+let renderRaf = 0;
+function cancelScheduledRender() {
+  if (!renderRaf) return;
+  cancelAnimationFrame(renderRaf);
+  renderRaf = 0;
+}
+function scheduleRender() {
+  if (renderRaf) return;
+  renderRaf = requestAnimationFrame(() => {
+    renderRaf = 0;
+    if (els.game?.hidden) return;
+    renderImmediate();
+  });
 }
 
 function canAct() {
@@ -314,12 +328,16 @@ function canTakePublic() {
 }
 
 function render() {
+  scheduleRender();
+}
+
+function renderImmediate() {
   cells = {};
 
-  // 顶行 y0：左 1e1 planet deck；第 8 张上方 again；右 leave
+  // 顶行 y0：左 7 planet card；第 8 张上方 again；右 leave
   put(0, 0, UI.title7(), { className: "mid-glyph title-row" });
   put(1, 0, UI.titlePlanet(), { className: "mid-glyph title-row" });
-  put(2, 0, UI.deck(), { className: "mid-glyph title-row" });
+  put(2, 0, UI.titleCard(), { className: "mid-glyph title-row" });
   if (gameMode === "single") {
     put(9, 0, hitGlyphs(UI.again()), {
       className: "mid-glyph title-row",
@@ -542,7 +560,14 @@ function render() {
   }
 
   flush();
-  els.btnOverlayOk.innerHTML = UI.title7();
+  if (els.btnOverlayOk) els.btnOverlayOk.innerHTML = UI.title7();
+}
+
+/** AI 演出等需要立刻上屏时用 */
+function renderNow() {
+  cancelScheduledRender();
+  if (els.game?.hidden) return;
+  renderImmediate();
 }
 
 function takePublic() {
@@ -610,8 +635,8 @@ function chooseDiscard(index) {
     return;
   }
   state.turn = "opponent";
-  render();
-  setTimeout(runOpponentTurn, 450);
+  renderNow();
+  setTimeout(runOpponentTurn, 280);
 }
 
 async function runOpponentTurn() {
@@ -622,8 +647,8 @@ async function runOpponentTurn() {
   // 对手开始行动：清本方提示
   playerInfo = null;
   opponentMarks = null;
-  render();
-  await wait(400);
+  renderNow();
+  await wait(220);
   if (opponentLeft) {
     busy = false;
     render();
@@ -650,8 +675,8 @@ async function runOpponentTurn() {
     taken = state.deck.shift();
     opponentInfo = opponentTakeDeckPrefix();
   }
-  render();
-  await wait(750);
+  renderNow();
+  await wait(400);
   if (opponentLeft) {
     busy = false;
     render();
@@ -669,8 +694,8 @@ async function runOpponentTurn() {
     taken: source === "public" ? taken : null,
   };
   opponentInfo = [...opponentInfo, ...andGiveSuffix(play.discarded)];
-  render();
-  await wait(750);
+  renderNow();
+  await wait(400);
   if (opponentLeft) {
     busy = false;
     render();
@@ -705,6 +730,7 @@ function wait(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 function hideAllScreens() {
+  cancelScheduledRender();
   els.menu.hidden = true;
   els.game.hidden = true;
   els.settings.hidden = true;
@@ -724,17 +750,11 @@ function closeNetLink() {
   netState = null;
 }
 
-function roomShareHint() {
-  return `share link + code · tap code / copy`;
-}
-
 async function copyRoomCode() {
   const code = String(lobby.code || "").trim();
   if (!code) return;
-  let ok = false;
   try {
     await navigator.clipboard.writeText(code);
-    ok = true;
   } catch {
     try {
       const ta = document.createElement("textarea");
@@ -744,21 +764,12 @@ async function copyRoomCode() {
       ta.style.opacity = "0";
       document.body.appendChild(ta);
       ta.select();
-      ok = document.execCommand("copy");
+      document.execCommand("copy");
       document.body.removeChild(ta);
     } catch {
-      ok = false;
+      /* ignore */
     }
   }
-  lobby._copyHint = ok
-    ? `copied ${code} · share ${location.origin}`
-    : "copy failed — select code manually";
-  renderRoom();
-  clearTimeout(copyRoomCode._t);
-  copyRoomCode._t = setTimeout(() => {
-    lobby._copyHint = "";
-    if (lobby.phase === "waiting") renderRoom();
-  }, 1600);
 }
 
 function localPlayerName() {
@@ -773,8 +784,6 @@ function resetLobby() {
     ready: [false, false],
     names: ["", ""],
     firstSeat: 0,
-    _copyHint: "",
-    _entryHint: "",
   };
 }
 
@@ -855,10 +864,10 @@ function renderRoom() {
       put(x0 + 1, 3, UI.yes(), { className: "mid-glyph" });
     } else if (name) {
       put(
-        x0 + 1,
+        x0,
         3,
         `<span class="room-name-cell">${escapeText(name)}</span>`,
-        { className: "mid-glyph" }
+        { className: "mid-glyph room-name-wide", colSpan: 3 }
       );
     }
   }
@@ -867,56 +876,48 @@ function renderRoom() {
   putSeat(1, 8);
 
   if (!inRoom) {
-    // y5：紧挨左右座位 —— create | 填空(4–7) | join，中间不留空列
-    put(3, 5, hitGlyphs(UI.create()), {
-      className: "mid-glyph",
+    // 左：create game → 点进创建界面（右移一格，与 join 对称）
+    put(2, 5, `${UI.create()}${UI.game()}`, {
+      className: "mid-glyph menu-hit-group cols-2 box",
       tag: "button",
+      colSpan: 2,
       onClick: () => createRoom(),
     });
+    // 右：上方横线填房间码，下方 join game 按钮才进入
     put(
+      8,
       4,
-      5,
       `<label class="room-code-blank-cell"><input class="room-input" id="room-input" maxlength="6" autocomplete="off" spellcheck="false" aria-label="room code" /></label>`,
-      { className: "mid-glyph room-join-blank", colSpan: 4 }
+      { className: "mid-glyph room-join-blank", colSpan: 2 }
     );
-    put(8, 5, hitGlyphs(UI.join()), {
-      className: "mid-glyph",
+    put(8, 5, `${UI.join()}${UI.game()}`, {
+      className: "mid-glyph menu-hit-group cols-2 box",
       tag: "button",
+      colSpan: 2,
       onClick: () => joinRoom(),
     });
-    if (lobby._entryHint) {
-      put(
-        2,
-        7,
-        `<span class="room-hint-cell">${escapeText(lobby._entryHint)}</span>`,
-        { className: "mid-glyph", colSpan: 8 }
-      );
-    }
   } else {
     if (lobby.code) {
       put(
-        4,
+        3,
         5,
         `<span class="room-code-text">${escapeText(lobby.code)}</span>`,
         {
-          className: "mid-glyph room-code-cell",
+          className: "mid-glyph room-code-cell room-code-lg",
           tag: "button",
-          colSpan: 4,
+          colSpan: 6,
           onClick: () => copyRoomCode(),
         }
       );
+      // 房间码下方：click for copy then share to other
+      put(2, 6, UI.click(), { className: "mid-glyph" });
+      put(3, 6, UI.for(), { className: "mid-glyph" });
+      put(4, 6, UI.copy(), { className: "mid-glyph" });
+      put(5, 6, UI.then(), { className: "mid-glyph" });
+      put(6, 6, UI.share(), { className: "mid-glyph" });
+      put(7, 6, UI.to(), { className: "mid-glyph" });
+      put(8, 6, UI.other(), { className: "mid-glyph" });
     }
-    const hint =
-      lobby._copyHint ||
-      (lobby.peerPresent
-        ? lobby.ready[0] && lobby.ready[1]
-          ? "starting…"
-          : "first / second · both yes → start"
-        : `waiting… ${roomShareHint()}`);
-    put(2, 6, `<span class="room-hint-cell">${escapeText(hint)}</span>`, {
-      className: "mid-glyph",
-      colSpan: 8,
-    });
     if (lobby.peerPresent && netSeat != null) {
       const myReady = !!lobby.ready[netSeat];
       put(5, 7, hitGlyphs(UI.yes(), myReady), {
@@ -1010,7 +1011,6 @@ function handleLobbyPeerLeft() {
   if (netRole === "guest") {
     closeNetLink();
     resetLobby();
-    lobby._entryHint = "home left — create or join again";
     renderRoom();
     return;
   }
@@ -1289,8 +1289,6 @@ async function createRoom() {
     ready: [false, false],
     names: [localPlayerName(), ""],
     firstSeat: 0,
-    _copyHint: "connecting relay…",
-    _entryHint: "",
     _joinDraft: "",
   };
   renderRoom();
@@ -1300,15 +1298,9 @@ async function createRoom() {
   } catch (err) {
     closeNetLink();
     resetLobby();
-    const why = err?.message || "relay-offline";
-    lobby._entryHint =
-      why === "room-full"
-        ? "room full"
-        : `relay offline — npm start / npm run deploy (${why})`;
     renderRoom();
     return;
   }
-  lobby._copyHint = "";
   renderRoom();
   netLink.send({ type: "hello", role: "host", name: localPlayerName() });
 }
@@ -1323,7 +1315,6 @@ async function joinRoom() {
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 6);
   if (code.length < 4) {
-    lobby._entryHint = "enter room code";
     renderRoom();
     return;
   }
@@ -1339,8 +1330,6 @@ async function joinRoom() {
     ready: [false, false],
     names: ["", localPlayerName()],
     firstSeat: 0,
-    _copyHint: "connecting relay…",
-    _entryHint: "",
     _joinDraft: code,
   };
   renderRoom();
@@ -1350,16 +1339,10 @@ async function joinRoom() {
   } catch (err) {
     closeNetLink();
     resetLobby();
-    const why = err?.message || "relay-offline";
-    lobby._entryHint =
-      why === "room-full"
-        ? "room full — create a new code"
-        : `relay offline — npm start / npm run deploy (${why})`;
     lobby._joinDraft = code;
     renderRoom();
     return;
   }
-  lobby._copyHint = "";
   renderRoom();
   netLink.send({ type: "join", role: "guest", name: localPlayerName() });
 }
@@ -1388,6 +1371,68 @@ function leaveGame() {
   showMenu();
 }
 
+/** 主界面：同 12×9 mid-glyph 落格 */
+function renderMenu() {
+  if (!els.menu || !menuBoardEl) return;
+  cells = {};
+
+  // y0–2：整行居中，内部分成 3 个等宽 3×3 槽（9/12），英文在字形下
+  put(
+    0,
+    0,
+    `<div class="menu-brand-row">${UI.title7()}${UI.titlePlanet()}${UI.titleCard()}</div>`,
+    { className: "menu-brand-cell", colSpan: 12, rowSpan: 3 }
+  );
+
+  // y4：you de name be ________（居中 8 列；上移一行）
+  put(2, 4, word("you"), { className: "mid-glyph" });
+  put(3, 4, word("de"), { className: "mid-glyph" });
+  put(4, 4, word("name"), { className: "mid-glyph" });
+  put(5, 4, word("be"), { className: "mid-glyph" });
+  put(
+    6,
+    4,
+    `<label class="room-code-blank-cell"><input class="room-input menu-name-input" id="menu-name-input" type="text" maxlength="16" autocomplete="nickname" spellcheck="false" aria-label="name" /></label>`,
+    { className: "mid-glyph room-join-blank", colSpan: 4 }
+  );
+
+  // y6：两组选项各跨 3 格，判定区=整组网格且连在一起
+  const startSingle = () => startGame("single");
+  const startTwo = () => startGame("two");
+  put(2, 6, `${UI.single()}${UI.playerWord()}${UI.game()}`, {
+    className: "mid-glyph menu-hit-group cols-3 box",
+    tag: "button",
+    colSpan: 3,
+    onClick: startSingle,
+  });
+  put(7, 6, `${UI.pair()}${UI.playerWord()}${UI.game()}`, {
+    className: "mid-glyph menu-hit-group cols-3 box",
+    tag: "button",
+    colSpan: 3,
+    onClick: startTwo,
+  });
+
+  // y8：右下 modify game，跨 2 格，判定区连成一块
+  put(10, 8, `${UI.modify()}${UI.game()}`, {
+    className: "mid-glyph menu-hit-group cols-2 box",
+    tag: "button",
+    colSpan: 2,
+    onClick: () => showSettings(),
+  });
+
+  flushTo(menuBoardEl);
+
+  els.menuNameInput = menuBoardEl.querySelector("#menu-name-input");
+  if (els.menuNameInput) {
+    els.menuNameInput.value = settings.playerName || "";
+    els.menuNameInput.oninput = () => setPlayerName(els.menuNameInput.value);
+    els.menuNameInput.onchange = () => {
+      setPlayerName(els.menuNameInput.value.trim());
+      els.menuNameInput.value = settings.playerName;
+    };
+  }
+}
+
 function showMenu() {
   screen = "menu";
   opponentLeft = false;
@@ -1401,6 +1446,7 @@ function showMenu() {
   busy = false;
   pending = null;
   gameMode = "single";
+  renderMenu();
 }
 
 /** 设置页：同 12×9 网格（暂不显示地球人汉字） */
@@ -1535,27 +1581,30 @@ function leaveRoomScreen() {
   showMenu();
 }
 
-function initMenu() {
-  els.menuTitle.innerHTML = menuTitleGlyphs();
-  els.menuNameGlyphs.innerHTML = youNameBeGlyphs();
-  els.choiceSingle.innerHTML = singlePlayerGlyphs();
-  els.choiceTwo.innerHTML = twoPlayerGlyphs();
-  els.menuModifyGlyphs.innerHTML = modifyGameGlyphs();
-  els.playerName.value = settings.playerName || "";
-  els.playerName.addEventListener("input", () => {
-    setPlayerName(els.playerName.value);
-  });
-  els.playerName.addEventListener("change", () => {
-    setPlayerName(els.playerName.value.trim());
-    els.playerName.value = settings.playerName;
-  });
-  els.btnSingle.addEventListener("click", () => startGame("single"));
-  els.btnTwo.addEventListener("click", () => startGame("two"));
-  els.btnMenuModify.addEventListener("click", () => showSettings());
-}
-
 els.btnOverlayOk.addEventListener("click", restart);
 loadSettings();
 applySettings();
-initMenu();
-showMenu();
+
+async function boot() {
+  const bootEl = document.getElementById("boot");
+  const fill = document.getElementById("boot-fill");
+  const app = document.getElementById("app");
+  try {
+    await preloadAssets((done, total) => {
+      if (fill && total > 0) {
+        fill.style.width = `${Math.round((done / total) * 100)}%`;
+      }
+    });
+  } catch {
+    /* 预载失败也进主界面，避免卡死 */
+  }
+  if (app) app.hidden = false;
+  showMenu();
+  if (bootEl) {
+    bootEl.classList.add("is-done");
+    bootEl.setAttribute("aria-busy", "false");
+    window.setTimeout(() => bootEl.remove(), 320);
+  }
+}
+
+boot();

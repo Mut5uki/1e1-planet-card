@@ -7,8 +7,9 @@
     "start": "node server.mjs",
     "tunnel": "npx --yes cloudflared tunnel --url http://127.0.0.1:5173",
     "dev:cf": "npx --yes wrangler@4 dev",
-    "deploy": "npx --yes wrangler@4 deploy",
-    "deploy:temp": "npx --yes wrangler@4 deploy --temporary",
+    "deploy": "node scripts/build-site.mjs && npx --yes wrangler@4 pages deploy _site --project-name planet-cards-web --commit-dirty=true",
+    "deploy:worker": "npx --yes wrangler@4 deploy -c wrangler.worker.toml",
+    "deploy:temp": "npx --yes wrangler@4 deploy -c wrangler.worker.toml --temporary",
     "serve-static": "npx --yes serve -p 5173 .",
     "test": "node --test test/win.test.js"
   },

@@ -36,7 +36,9 @@ export function alienNumberParts(n) {
   return parts;
 }
 
-const V = "v34"; // cache bust: --glyph-mask 与尺寸变量分离
+import { ASSET_V } from "./preload.js";
+
+const V = ASSET_V; // cache bust: --glyph-mask 与尺寸变量分离；与 preload 共用
 
 function escapeHtml(s) {
   return String(s)
@@ -127,6 +129,7 @@ export const UI = {
   fail: () => ui("fail.png", "fail"),
   leave: () => ui("leave.png", "leave"),
   again: () => ui("again.png", "again"),
+  mark: () => ui("mark.png", "mark"),
   modify: () => ui("modify.png", "modify"),
   single: () => ui("single.png", "single"),
   pair: () => ui("pair.png", "pair"),
@@ -143,6 +146,13 @@ export const UI = {
   create: () => ui("create.png", "create"),
   join: () => ui("join.png", "join"),
   enter: () => ui("enter.png", "enter"),
+  click: () => ui("click.png", "click"),
+  for: () => ui("for.png", "for"),
+  copy: () => ui("copy.png", "copy"),
+  then: () => ui("then.png", "then"),
+  share: () => ui("share.png", "share"),
+  to: () => ui("to.png", "to"),
+  other: () => ui("other.png", "other"),
   /** 房主：无 host 符，用 home */
   home: () => ui("home.png", "home"),
   guest: () => ui("guest.png", "guest"),

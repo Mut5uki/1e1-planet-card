@@ -4,41 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>七星牌</title>
-  <link rel="stylesheet" href="styles.css?v=178" />
+  <link rel="stylesheet" href="styles.css?v=189" />
+  <!-- 首屏关键字形尽早拉 -->
+  <link rel="preload" as="image" href="assets/official/numbers/1e1.png?v36" />
+  <link rel="preload" as="image" href="assets/official/ui/planet.png?v36" />
+  <link rel="preload" as="image" href="assets/official/ui/card.png?v36" />
 </head>
 <body>
-  <div id="app">
-    <!-- 主界面 -->
+  <div id="boot" class="boot" aria-busy="true" aria-live="polite">
+    <div class="boot-bar" aria-hidden="true">
+      <div class="boot-bar-fill" id="boot-fill"></div>
+    </div>
+  </div>
+  <div id="app" hidden>
+    <!-- 主界面：同 12×9 网格 -->
     <section id="menu" class="menu" aria-label="menu">
-      <button type="button" class="menu-modify" id="btn-menu-modify" aria-label="modify game">
-        <span class="menu-modify-glyphs" id="menu-modify-glyphs"></span>
-      </button>
-      <h1 class="menu-brand" aria-label="1e1 planet card">
-        <span class="menu-brand-row" id="menu-title"></span>
-      </h1>
-      <div class="menu-name-row" aria-label="you de name be">
-        <span class="menu-name-glyphs" id="menu-name-glyphs"></span>
-        <label class="menu-name-blank">
-          <input
-            class="menu-name-input"
-            id="player-name"
-            type="text"
-            maxlength="16"
-            autocomplete="nickname"
-            spellcheck="false"
-            placeholder=""
-            aria-label="name"
-          />
-        </label>
-      </div>
-      <div class="menu-choices">
-        <button type="button" class="menu-choice" id="btn-single" aria-label="single-player game">
-          <span class="menu-choice-glyphs" id="choice-single"></span>
-        </button>
-        <button type="button" class="menu-choice" id="btn-two" aria-label="pair player game">
-          <span class="menu-choice-glyphs" id="choice-two"></span>
-        </button>
-      </div>
+      <div id="menu-board" class="board-12x9 menu-board" aria-label="menu board"></div>
     </section>
 
     <!-- 双人准备房间：同 12×9 网格 -->
@@ -63,6 +44,6 @@
       </div>
     </section>
   </div>
-  <script type="module" src="main.js?v=139"></script>
+  <script type="module" src="main.js?v=160"></script>
 </body>
 </html>

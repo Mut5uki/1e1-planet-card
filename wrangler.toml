@@ -1,18 +1,11 @@
-name = "planet-cards"
-main = "cf-worker/index.js"
+# Cloudflare Pages → https://planet-cards-web.pages.dev
+# （workers.dev 在部分网络会被 DNS 污染打不开）
+name = "planet-cards-web"
 compatibility_date = "2025-03-01"
-workers_dev = true
+pages_build_output_dir = "."
 
+# 复用 Worker planet-cards 里的 GameRoom（先 npm run deploy:worker）
 [[durable_objects.bindings]]
 name = "ROOMS"
 class_name = "GameRoom"
-
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["GameRoom"]
-
-[assets]
-directory = "."
-binding = "ASSETS"
-# WebSocket 必须先走 Worker，再回落到静态资源
-run_worker_first = ["/ws*", "/health"]
+script_name = "planet-cards"

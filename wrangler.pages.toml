@@ -1,0 +1,11 @@
+# Cloudflare Pages：*.pages.dev 在国内通常比 workers.dev 更能打开
+# 部署：npx wrangler pages deploy . --project-name planet-cards-web -c wrangler.pages.toml
+name = "planet-cards-web"
+compatibility_date = "2025-03-01"
+pages_build_output_dir = "."
+
+# 复用已部署 Worker planet-cards 里的 GameRoom
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "GameRoom"
+script_name = "planet-cards"

@@ -21,7 +21,7 @@ export const WORD_COLORS = [
 /** @type {{ color: string, hideTerran: boolean, playerName: string }} */
 export let settings = {
   color: "white",
-  hideTerran: false,
+  hideTerran: true, // 默认隐藏地球人语言（英文标注）
   playerName: "",
 };
 
